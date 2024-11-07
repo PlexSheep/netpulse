@@ -1,5 +1,5 @@
 use std::fs;
-use std::io::{BufReader, ErrorKind, Write};
+use std::io::{ErrorKind, Write};
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -7,10 +7,16 @@ use serde::{Deserialize, Serialize};
 use crate::errors::StoreError;
 use crate::records::Check;
 
+#[cfg(feature = "compression")]
+use zstd;
+
 /// The filename of the database, in [DB_PATH]
 pub const DB_NAME: &str = "netpulse.store";
 /// Path to the database of netpulse (combine with [DB_NAME])
 pub const DB_PATH: &str = "/var/lib/netpulse";
+#[cfg(feature = "compression")]
+pub const ZSTD_COMPRESSION_LEVEL: i32 = 4;
+pub const ENV_PATH: &str = "NETPULSE_STORE_PATH";
 
 #[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Store {
@@ -19,7 +25,13 @@ pub struct Store {
 
 impl Store {
     pub fn path() -> PathBuf {
-        PathBuf::from(format!("{DB_PATH}/{DB_NAME}"))
+        if let Some(var) = std::env::var_os(ENV_PATH) {
+            let mut p = PathBuf::from(var);
+            p.push(DB_NAME);
+            p
+        } else {
+            PathBuf::from(format!("{DB_PATH}/{DB_NAME}"))
+        }
     }
 
     fn new() -> Self {
@@ -33,7 +45,7 @@ impl Store {
                 .expect("the store path has no parent directory"),
         )?;
 
-        let mut file = match fs::File::options()
+        let file = match fs::File::options()
             .read(false)
             .write(true)
             .append(false)
@@ -46,8 +58,13 @@ impl Store {
 
         let store = Store::new();
 
-        file.write_all(&bincode::serialize(&store)?)?;
-        file.flush()?;
+        #[cfg(feature = "compression")]
+        let mut writer = zstd::Encoder::new(file, ZSTD_COMPRESSION_LEVEL)?;
+        #[cfg(not(feature = "compression"))]
+        let mut writer = file;
+
+        writer.write_all(&bincode::serialize(&store)?)?;
+        writer.flush()?;
         Ok(store)
     }
 
@@ -78,7 +95,10 @@ impl Store {
             },
         };
 
-        let reader = BufReader::new(file);
+        #[cfg(feature = "compression")]
+        let reader = zstd::Decoder::new(file)?;
+        #[cfg(not(feature = "compression"))]
+        let mut reader = file;
 
         Ok(bincode::deserialize_from(reader)?)
     }
@@ -100,8 +120,13 @@ impl Store {
             },
         };
 
-        file.write_all(&bincode::serialize(&self)?)?;
-        file.flush()?;
+        #[cfg(feature = "compression")]
+        let mut writer = zstd::Encoder::new(file, ZSTD_COMPRESSION_LEVEL)?;
+        #[cfg(not(feature = "compression"))]
+        let mut writer = file;
+
+        writer.write_all(&bincode::serialize(&self)?)?;
+        writer.flush()?;
         Ok(())
     }
 
