@@ -24,25 +24,25 @@ pub(crate) fn daemon() {
                 eprintln!("could not clean up before terminating: {e:#?}");
                 std::process::exit(1);
             }
-            let time = time::SystemTime::now();
-            println!("making a check...");
-            store.add_check(Check::new(
-                time,
-                if time.duration_since(UNIX_EPOCH).unwrap().as_secs() % 10 == 0 {
-                    CheckFlag::Timeout | CheckFlag::TypePing
-                } else {
-                    CheckFlag::Success.into()
-                },
-                None,
-            ));
-            println!("saving...");
-            if let Err(err) = store.save() {
-                eprintln!("error while saving to file: {err:#?}");
-                std::process::exit(1);
-            }
-            println!("done! sleeping...");
-            std::thread::sleep(Duration::from_secs(1));
         }
+        let time = time::SystemTime::now();
+        println!("making a check...");
+        store.add_check(Check::new(
+            time,
+            if time.duration_since(UNIX_EPOCH).unwrap().as_secs() % 10 == 0 {
+                CheckFlag::Timeout | CheckFlag::TypePing
+            } else {
+                CheckFlag::Success.into()
+            },
+            None,
+        ));
+        println!("saving...");
+        if let Err(err) = store.save() {
+            eprintln!("error while saving to file: {err:#?}");
+            std::process::exit(1);
+        }
+        println!("done! sleeping...");
+        std::thread::sleep(Duration::from_secs(1));
     }
 }
 
@@ -59,9 +59,14 @@ fn cleanup(store: &Store) -> Result<(), StoreError> {
         return Err(err);
     }
 
+    // FIXME: does what I think it should do, but also errors with errno 2 not found
     if let Err(err) = std::fs::remove_file(DAEMON_PID_FILE) {
-        eprintln!("Failed to remove PID file: {}", err);
-        return Err(err.into());
+        if matches!(err.kind(), std::io::ErrorKind::NotFound) {
+            // yeah, idk, ignore?
+        } else {
+            eprintln!("Failed to remove PID file: {}", err);
+            return Err(err.into());
+        }
     }
 
     Ok(())
