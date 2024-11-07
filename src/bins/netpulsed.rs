@@ -6,6 +6,8 @@ use daemonize::Daemonize;
 use getopts::Options;
 use netpulse::store::Store;
 use netpulse::{DAEMON_LOG_ERR, DAEMON_LOG_INF, DAEMON_PID_FILE, DAEMON_USER};
+use nix::errno::Errno;
+use nix::libc::ESRCH;
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
 
@@ -62,13 +64,24 @@ fn getpid() -> Option<i32> {
 fn infod() {
     match getpid() {
         Some(pid) => {
-            println!("netpulsed was started with pid {pid}");
+            if pid_runs(pid) {
+                println!("netpulsed is running with pid {pid}")
+            } else {
+                println!(
+                    "the pid file exists with pid {pid}, but no process with that pid is running"
+                )
+            }
         }
         None => println!("netpulsed is not running"),
     }
 }
 
+fn pid_runs(pid: i32) -> bool {
+    fs::exists(format!("/proc/{pid}")).expect("could not check if the process exists")
+}
+
 fn endd() {
+    let mut terminated = false;
     let pid: Pid = match getpid() {
         None => {
             println!("netpulsed is not running");
@@ -84,14 +97,19 @@ fn endd() {
             // Could check /proc/{pid} or try kill(0)
         }
         Err(e) => {
-            panic!("Failed to terminate netpulsed: {e}");
+            match e {
+                // no such process
+                Errno::ESRCH => {
+                    terminated = true;
+                }
+                _ => panic!("Failed to terminate netpulsed: {e}"),
+            }
         }
     }
 
     let sent_sig = std::time::Instant::now();
-    let mut terminated = false;
     while !terminated && sent_sig.elapsed().as_secs() < 5 {
-        if fs::exists(format!("/proc/{pid}")).expect("could not check if the process exists") {
+        if pid_runs(pid.as_raw()) {
             std::thread::sleep(std::time::Duration::from_millis(20));
         } else {
             terminated = true
