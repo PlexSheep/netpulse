@@ -96,7 +96,7 @@ impl CheckType {
 
     /// Get all variants of this enum.
     pub const fn all() -> &'static [Self] {
-        &[Self::Dns, Self::Http, Self::IcmpV4]
+        &[Self::Dns, Self::Http, Self::IcmpV4, Self::IcmpV6]
     }
 }
 
