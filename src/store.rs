@@ -1,5 +1,6 @@
 use std::fs;
 use std::io::{ErrorKind, Write};
+use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -50,6 +51,7 @@ impl Store {
             .write(true)
             .append(false)
             .create_new(true)
+            .mode(0o644)
             .open(Self::path())
         {
             Ok(file) => file,
@@ -86,6 +88,7 @@ impl Store {
         let file = match fs::File::options()
             .read(true)
             .write(false)
+            .create_new(false)
             .open(Self::path())
         {
             Ok(file) => file,
@@ -132,5 +135,9 @@ impl Store {
 
     pub fn add_check(&mut self, check: impl Into<Check>) {
         self.checks.push(check.into());
+    }
+
+    pub fn checks(&self) -> &[Check] {
+        &self.checks
     }
 }
