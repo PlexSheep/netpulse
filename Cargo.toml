@@ -28,6 +28,6 @@ zstd = { version = "0.13.2", optional = true }
 name = "netpulse"
 path = "src/bins/netpulse.rs"
 
-[[bin]] # daemon
-name = "netpulsed"
-path = "src/bins/netpulsed.rs"
+[[bin]] # daemon and controlling it
+name = "netpulsectl"
+path = "src/bins/netpulsectl.rs"
