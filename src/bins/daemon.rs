@@ -1,5 +1,4 @@
 use std::sync::atomic::AtomicBool;
-use std::sync::RwLock;
 use std::time::{self, Duration, UNIX_EPOCH};
 
 use netpulse::errors::StoreError;
