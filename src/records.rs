@@ -8,7 +8,6 @@ use crate::errors::CheckFlagTypeConversionError;
 flags! {
     #[derive(Hash, Deserialize, Serialize)]
     pub enum CheckFlag: u16 {
-        NoFlags     =   0b0000_0000_0000_0000,
         /// If this is not set, the check will be considered failed
         Success     =   0b0000_0000_0000_0001,
         /// Failure because of a timeout
@@ -30,7 +29,7 @@ flags! {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Clone, Copy)]
 pub enum CheckType {
     Dns,
     Http,
@@ -61,7 +60,7 @@ impl TryFrom<CheckFlag> for CheckType {
 }
 
 /// Information about connectivity
-#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Clone, Copy)]
 pub struct Check {
     /// Unix timestamp
     timestamp: u64,
@@ -132,7 +131,7 @@ mod test {
     fn test_max_time_fits_in_latency_field() {
         let _c = Check::new(
             time::SystemTime::now(),
-            CheckFlag::NoFlags,
+            CheckFlag::Success,
             Some(TIMEOUT_MS),
         );
         // if it can be created, that's good enough for me, I'm just worried that I'll change the
