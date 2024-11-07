@@ -107,7 +107,7 @@ impl Store {
     }
 
     pub fn save(&self) -> Result<(), StoreError> {
-        let mut file = match fs::File::options()
+        let file = match fs::File::options()
             .read(false)
             .write(true)
             .append(false)

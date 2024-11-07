@@ -2,7 +2,6 @@ use std::fs::{self, File};
 use std::time::{self, Duration, UNIX_EPOCH};
 
 use daemonize::Daemonize;
-use netpulse::errors::CheckFlagTypeConversionError;
 use netpulse::records::{Check, CheckFlag};
 use netpulse::store::Store;
 use netpulse::{DAEMON_LOG_ERR, DAEMON_LOG_INF};
