@@ -23,11 +23,12 @@ bincode = "1.3.3"
 flagset = { version = "0.4.6", features = ["serde"] }
 thiserror = "2.0.0"
 zstd = { version = "0.13.2", optional = true }
+nix = { version = "0.29.0", features = ["signal", "process", "user"] }
 
 [[bin]] # client
 name = "netpulse"
 path = "src/bins/netpulse.rs"
 
 [[bin]] # daemon and controlling it
-name = "netpulsectl"
-path = "src/bins/netpulsectl.rs"
+name = "netpulsed"
+path = "src/bins/netpulsed.rs"
