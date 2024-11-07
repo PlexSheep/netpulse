@@ -21,8 +21,8 @@ pub(crate) fn daemon() {
             println!("terminating the daemon");
             if let Err(e) = cleanup(&store) {
                 eprintln!("could not clean up before terminating: {e:#?}");
-                std::process::exit(1);
             }
+            std::process::exit(1);
         }
         let time = time::SystemTime::now();
         println!("making a check...");
