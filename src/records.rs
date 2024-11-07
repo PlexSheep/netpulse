@@ -1,9 +1,11 @@
+use std::net::IpAddr;
+use std::str::FromStr;
 use std::time;
 
 use flagset::{flags, FlagSet};
 use serde::{Deserialize, Serialize};
 
-use crate::errors::CheckFlagTypeConversionError;
+use crate::TIMEOUT;
 
 flags! {
     #[derive(Hash, Deserialize, Serialize)]
@@ -21,9 +23,11 @@ flags! {
         IPv6        =   0b0000_0010_0000_0000,
 
         /// The Check used HTTP/HTTPS
-        TypeHTTP    =   0b0010_0000_0000_0000,
-        /// The Check used Ping/ICMP
-        TypePing    =   0b0100_0000_0000_0000,
+        TypeHTTP    =   0b0001_0000_0000_0000,
+        /// The Check used Ping/ICMP v4/v6
+        ///
+        /// Depends of the IPv6/IPv4 flags to determine if it's ICMPv4 or ICMPv6
+        TypeIcmp    =   0b0100_0000_0000_0000,
         /// The Check used DNS
         TypeDns     =   0b1000_0000_0000_0000,
     }
@@ -33,7 +37,67 @@ flags! {
 pub enum CheckType {
     Dns,
     Http,
-    Ping,
+    IcmpV4,
+    IcmpV6,
+}
+impl CheckType {
+    /// Make a new [Check] of this type.
+    ///
+    /// This is the actual thing that carries out the checking
+    pub fn make(&self) -> Check {
+        let mut check = Check::new(std::time::SystemTime::now(), FlagSet::default(), None);
+
+        match self {
+            Self::IcmpV4 => {
+                check.add_flag(CheckFlag::IPv4);
+                if let Err(err) = ping::dgramsock::ping(
+                    IpAddr::from_str("1.1.1.1").unwrap(),
+                    Some(TIMEOUT),
+                    None,
+                    None,
+                    None,
+                    None,
+                ) {
+                    match err {
+                        _ => {
+                            eprintln!("unknown error when performing a icmpv4 (ping) check: {err}")
+                        }
+                    }
+                } else {
+                    check.add_flag(CheckFlag::Success);
+                }
+            }
+            Self::IcmpV6 => {
+                check.add_flag(CheckFlag::IPv6);
+                if let Err(err) = ping::dgramsock::ping(
+                    IpAddr::from_str("2606:4700:4700::1111").unwrap(),
+                    Some(TIMEOUT),
+                    None,
+                    None,
+                    None,
+                    None,
+                ) {
+                    match err {
+                        _ => {
+                            eprintln!("unknown error when performing a icmpv6 (ping) check: {err}")
+                        }
+                    }
+                } else {
+                    check.add_flag(CheckFlag::Success);
+                }
+            }
+            _ => {
+                eprintln!("skipping unimplemented check")
+            }
+        }
+
+        check
+    }
+
+    /// Get all variants of this enum.
+    pub const fn all() -> &'static [Self] {
+        &[Self::Dns, Self::Http, Self::IcmpV4]
+    }
 }
 
 impl From<CheckType> for CheckFlag {
@@ -41,21 +105,9 @@ impl From<CheckType> for CheckFlag {
         match value {
             CheckType::Dns => CheckFlag::TypeDns,
             CheckType::Http => CheckFlag::TypeHTTP,
-            CheckType::Ping => CheckFlag::TypePing,
+            CheckType::IcmpV4 => CheckFlag::TypeIcmp,
+            CheckType::IcmpV6 => CheckFlag::TypeIcmp,
         }
-    }
-}
-
-impl TryFrom<CheckFlag> for CheckType {
-    type Error = CheckFlagTypeConversionError;
-
-    fn try_from(value: CheckFlag) -> Result<Self, Self::Error> {
-        Ok(match value {
-            CheckFlag::TypeDns => Self::Dns,
-            CheckFlag::TypeHTTP => Self::Http,
-            CheckFlag::TypePing => Self::Ping,
-            _ => return Err(CheckFlagTypeConversionError),
-        })
     }
 }
 
@@ -118,6 +170,16 @@ impl Check {
     /// Returns the timestamp of this [`Check`].
     pub fn timestamp(&self) -> u64 {
         self.timestamp
+    }
+
+    /// Returns a mutable reference to the flags of this [`Check`].
+    pub fn flags_mut(&mut self) -> &mut FlagSet<CheckFlag> {
+        &mut self.flags
+    }
+
+    /// Add the given flag to the flags of this [Check]
+    pub fn add_flag(&mut self, flag: CheckFlag) {
+        self.flags |= flag
     }
 }
 

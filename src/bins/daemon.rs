@@ -5,7 +5,6 @@ use netpulse::errors::StoreError;
 use netpulse::DAEMON_PID_FILE;
 use nix::sys::signal::{self, SigHandler, Signal};
 
-use netpulse::records::{Check, CheckFlag};
 use netpulse::store::Store;
 
 static TERMINATE: AtomicBool = AtomicBool::new(false);
@@ -25,24 +24,31 @@ pub(crate) fn daemon() {
             std::process::exit(1);
         }
         let time = time::SystemTime::now();
-        println!("making a check...");
-        store.add_check(Check::new(
-            time,
-            if time.duration_since(UNIX_EPOCH).unwrap().as_secs() % 10 == 0 {
-                CheckFlag::Timeout | CheckFlag::TypePing
-            } else {
-                CheckFlag::Success.into()
-            },
-            None,
-        ));
-        println!("saving...");
-        if let Err(err) = store.save() {
-            eprintln!("error while saving to file: {err:#?}");
-            std::process::exit(1);
+        if time
+            .duration_since(UNIX_EPOCH)
+            .expect("time is before the UNIX_EPOCH")
+            .as_secs()
+            % store.period_seconds()
+            == 0
+        {
+            if let Err(err) = wakeup(&mut store) {
+                eprintln!("error in the wakeup turn: {err}");
+            }
         }
         println!("done! sleeping...");
         std::thread::sleep(Duration::from_secs(1));
     }
+}
+
+fn wakeup(store: &mut Store) -> Result<(), StoreError> {
+    println!("waking up!");
+
+    store.make_checks();
+
+    if let Err(err) = store.save() {
+        eprintln!("error while saving to file: {err:}");
+    }
+    Ok(())
 }
 
 fn signal_hook() {

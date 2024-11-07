@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::StoreError;
-use crate::records::Check;
+use crate::records::{Check, CheckType};
 
 #[cfg(feature = "compression")]
 use zstd;
@@ -19,9 +19,41 @@ pub const DB_PATH: &str = "/var/lib/netpulse";
 pub const ZSTD_COMPRESSION_LEVEL: i32 = 4;
 pub const ENV_PATH: &str = "NETPULSE_STORE_PATH";
 
+/// A version of the [Store].
+///
+/// The [Store] definition might change over time as netpulse is developed. To work with older or
+/// newer [Stores](Store), we need to be able to easily distinguish between versions. The store
+/// version is just stored as a [u8].
+#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub struct Version {
+    inner: u8,
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Store {
+    version: Version,
     checks: Vec<Check>,
+}
+
+impl From<u8> for Version {
+    fn from(value: u8) -> Self {
+        Self { inner: value }
+    }
+}
+
+impl From<Version> for u8 {
+    fn from(value: Version) -> Self {
+        value.inner
+    }
+}
+
+impl Version {
+    pub const CURRENT: Self = Version::new(0);
+    pub const SUPPROTED: &[Self] = &[Version::new(0)];
+
+    pub(crate) const fn new(raw: u8) -> Self {
+        Self { inner: raw }
+    }
 }
 
 impl Store {
@@ -36,7 +68,10 @@ impl Store {
     }
 
     fn new() -> Self {
-        Self { checks: Vec::new() }
+        Self {
+            version: Version::CURRENT,
+            checks: Vec::new(),
+        }
     }
 
     fn create() -> Result<Self, StoreError> {
@@ -139,5 +174,15 @@ impl Store {
 
     pub fn checks(&self) -> &[Check] {
         &self.checks
+    }
+
+    pub fn period_seconds(&self) -> u64 {
+        30
+    }
+
+    pub fn make_checks(&mut self) {
+        for check_type in CheckType::all() {
+            self.checks.push(check_type.make());
+        }
     }
 }
