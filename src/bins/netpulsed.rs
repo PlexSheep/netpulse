@@ -69,21 +69,49 @@ fn infod() {
 }
 
 fn endd() {
-    match getpid() {
-        Some(pid) => {
-            match signal::kill(Pid::from_raw(pid), Signal::SIGTERM) {
-                Ok(()) => {
-                    println!("Sent termination signal to netpulsed (pid: {pid})");
-                    // Optionally: wait to confirm process ended
-                    // Could check /proc/{pid} or try kill(0)
-                }
-                Err(e) => {
-                    eprintln!("Failed to terminate netpulsed: {e}");
-                }
-            }
-        }
+    let pid: Pid = match getpid() {
         None => {
             println!("netpulsed is not running");
+            return;
+        }
+        Some(raw) => Pid::from_raw(raw),
+    };
+
+    match signal::kill(pid, Signal::SIGTERM) {
+        Ok(()) => {
+            println!("Sent termination signal to netpulsed (pid: {pid})");
+            // Optionally: wait to confirm process ended
+            // Could check /proc/{pid} or try kill(0)
+        }
+        Err(e) => {
+            panic!("Failed to terminate netpulsed: {e}");
+        }
+    }
+
+    let sent_sig = std::time::Instant::now();
+    let mut terminated = false;
+    while !terminated && sent_sig.elapsed().as_secs() < 5 {
+        if fs::exists(format!("/proc/{pid}")).expect("could not check if the process exists") {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        } else {
+            terminated = true
+        }
+    }
+    if !terminated {
+        println!("netpulsed (pid {pid}) is taking too long to terminate, killing it",);
+        match signal::kill(pid, Signal::SIGKILL) {
+            Ok(()) => {
+                println!("Sent kill signal to netpulsed (pid: {pid})");
+            }
+            Err(e) => {
+                eprintln!("Failed to kill netpulsed: {e}");
+            }
+        }
+    }
+    if fs::exists(DAEMON_PID_FILE).expect("could not check if the pid file exists") {
+        eprintln!("The pid file ({DAEMON_PID_FILE}) still exists even though the daemon is not running, removing it");
+        if let Err(err) = fs::remove_file(DAEMON_PID_FILE) {
+            eprintln!("Could not remove the pid file: {err}")
         }
     }
 }
