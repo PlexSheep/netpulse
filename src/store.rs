@@ -104,4 +104,8 @@ impl Store {
         file.flush()?;
         Ok(())
     }
+
+    pub fn add_check(&mut self, check: impl Into<Check>) {
+        self.checks.push(check.into());
+    }
 }
