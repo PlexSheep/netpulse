@@ -35,7 +35,6 @@ pub(crate) fn daemon() {
                 eprintln!("error in the wakeup turn: {err}");
             }
         }
-        println!("done! sleeping...");
         std::thread::sleep(Duration::from_secs(1));
     }
 }
@@ -48,6 +47,8 @@ fn wakeup(store: &mut Store) -> Result<(), StoreError> {
     if let Err(err) = store.save() {
         eprintln!("error while saving to file: {err:}");
     }
+
+    println!("done!");
     Ok(())
 }
 

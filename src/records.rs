@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::net::IpAddr;
 use std::str::FromStr;
 use std::time;
@@ -39,6 +40,7 @@ pub enum CheckType {
     Http,
     IcmpV4,
     IcmpV6,
+    Unknown,
 }
 impl CheckType {
     /// Make a new [Check] of this type.
@@ -100,14 +102,19 @@ impl CheckType {
     }
 }
 
-impl From<CheckType> for CheckFlag {
-    fn from(value: CheckType) -> Self {
-        match value {
-            CheckType::Dns => CheckFlag::TypeDns,
-            CheckType::Http => CheckFlag::TypeHTTP,
-            CheckType::IcmpV4 => CheckFlag::TypeIcmp,
-            CheckType::IcmpV6 => CheckFlag::TypeIcmp,
-        }
+impl Display for CheckType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Dns => "DNS",
+                Self::Http => "HTTP(S)",
+                Self::IcmpV4 => "ICMPv4",
+                Self::IcmpV6 => "ICMPv6",
+                Self::Unknown => "Unknown",
+            }
+        )
     }
 }
 
@@ -149,13 +156,13 @@ impl Check {
     ///
     /// Ok means, it's a [Success](CheckFlag::Success), and has no weird anomalies (that this
     /// checks for).
-    pub fn is_ok(&self) -> bool {
+    pub fn is_success(&self) -> bool {
         self.flags.contains(CheckFlag::Success)
     }
 
     /// Returns the latency of this [`Check`].
     pub fn latency(&self) -> Option<u16> {
-        if !self.is_ok() {
+        if !self.is_success() {
             None
         } else {
             self.latency
@@ -180,6 +187,38 @@ impl Check {
     /// Add the given flag to the flags of this [Check]
     pub fn add_flag(&mut self, flag: CheckFlag) {
         self.flags |= flag
+    }
+
+    /// Check the flags and infer the [CheckType]
+    pub fn calc_type(&self) -> CheckType {
+        if self.flags.contains(CheckFlag::TypeHTTP) {
+            CheckType::Http
+        } else if self.flags.contains(CheckFlag::TypeDns) {
+            CheckType::Dns
+        } else if self.flags.contains(CheckFlag::TypeIcmp) {
+            if self.flags.contains(CheckFlag::IPv4) {
+                CheckType::IcmpV4
+            } else if self.flags.contains(CheckFlag::IPv6) {
+                CheckType::IcmpV6
+            } else {
+                eprintln!("flag for ICMP is set, but not if ipv4 or ipv6 was used");
+                CheckType::Unknown
+            }
+        } else {
+            CheckType::Unknown
+        }
+    }
+}
+
+impl Display for Check {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Type: {}\nOk: {}", self.calc_type(), self.is_success())?;
+        writeln!(f, "Latency: {}", {
+            match self.latency() {
+                Some(l) => format!("{l} ms"),
+                None => "(Error)".to_string(),
+            }
+        })
     }
 }
 
