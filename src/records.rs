@@ -5,11 +5,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::CheckFlagTypeConversionError;
 
-#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Default)]
-pub struct Store {
-    checks: Vec<Check>,
-}
-
 flags! {
     #[derive(Hash, Deserialize, Serialize)]
     pub enum CheckFlag: u16 {
@@ -20,6 +15,11 @@ flags! {
         Timeout     =   0b0000_0000_0000_0010,
         /// Failure because the destination is unreachable
         Unreachable =   0b0000_0000_0000_0100,
+
+        /// The Check used IPv4
+        IPv4        =   0b0000_0001_0000_0000,
+        /// The Check used IPv6
+        IPv6        =   0b0000_0010_0000_0000,
 
         /// The Check used HTTP/HTTPS
         TypeHTTP    =   0b0010_0000_0000_0000,
