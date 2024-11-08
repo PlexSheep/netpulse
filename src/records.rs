@@ -51,16 +51,19 @@ impl CheckType {
 
         match self {
             Self::IcmpV4 => {
-                const TARGET_IDX: usize = 2;
+                const TARGET_IDX: usize = 0;
                 check.add_flag(CheckFlag::IPv4);
                 check.add_flag(CheckFlag::TypeIcmp);
                 check.set_target(TARGET_IDX);
-                if let Err(err) =
-                    crate::ping::just_fucking_ping(IpAddr::from_str(TARGETS[TARGET_IDX]).unwrap())
+                match crate::ping::just_fucking_ping(IpAddr::from_str(TARGETS[TARGET_IDX]).unwrap())
                 {
-                    eprintln!("unknown error when performing a icmpv4 (ping) check: {err}")
-                } else {
-                    check.add_flag(CheckFlag::Success);
+                    Err(err) => {
+                        eprintln!("unknown error when performing a ICMPv4 (ping) check: {err}")
+                    }
+                    Ok(lat) => {
+                        check.add_flag(CheckFlag::Success);
+                        check.latency = Some(lat);
+                    }
                 }
             }
             Self::IcmpV6 => {
@@ -68,12 +71,15 @@ impl CheckType {
                 check.add_flag(CheckFlag::IPv6);
                 check.add_flag(CheckFlag::TypeIcmp);
                 check.set_target(TARGET_IDX);
-                if let Err(err) =
-                    crate::ping::just_fucking_ping(IpAddr::from_str(TARGETS[TARGET_IDX]).unwrap())
+                match crate::ping::just_fucking_ping(IpAddr::from_str(TARGETS[TARGET_IDX]).unwrap())
                 {
-                    eprintln!("unknown error when performing a icmpv6 (ping) check: {err}")
-                } else {
-                    check.add_flag(CheckFlag::Success);
+                    Err(err) => {
+                        eprintln!("unknown error when performing a ICMPv6 (ping) check: {err}")
+                    }
+                    Ok(lat) => {
+                        check.add_flag(CheckFlag::Success);
+                        check.latency = Some(lat);
+                    }
                 }
             }
             _ => {
@@ -87,6 +93,11 @@ impl CheckType {
     /// Get all variants of this enum.
     pub const fn all() -> &'static [Self] {
         &[Self::Dns, Self::Http, Self::IcmpV4, Self::IcmpV6]
+    }
+
+    /// Get all enabled variants of this enum.
+    pub const fn enabled() -> &'static [Self] {
+        &[Self::IcmpV4, Self::IcmpV6]
     }
 }
 
