@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use getopts::Options;
 use netpulse::analyze;
-use netpulse::records::{Check, CheckType, TARGETS_HTTP};
+use netpulse::records::{CheckType, TARGETS_HTTP};
 use netpulse::store::Store;
 
 fn main() {

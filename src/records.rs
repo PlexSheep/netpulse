@@ -1,6 +1,6 @@
 use std::fmt::Display;
 use std::net::IpAddr;
-use std::time::{self, SystemTime};
+use std::time::{self};
 
 use flagset::{flags, FlagSet};
 use serde::{Deserialize, Serialize};
