@@ -84,6 +84,13 @@ fn barrier(f: &mut String, title: &str) -> Result<(), AnalysisError> {
 fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     let all_checks: Vec<&Check> = store.checks().iter().collect();
     let mut outages: Vec<Outage> = Vec::new();
+    let fails_exist = all_checks
+        .iter()
+        .fold(true, |fails_exist, c| fails_exist & !c.is_success());
+    if !fails_exist {
+        writeln!(f, "No outages")?;
+        return Ok(());
+    }
 
     for check_type in CheckType::all() {
         let checks: Vec<&&Check> = all_checks
