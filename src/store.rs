@@ -155,6 +155,71 @@ impl Store {
         }
     }
 
+    /// Sets up the store directory with proper permissions.
+    ///
+    /// This function must be called with root privileges before starting the daemon. It:
+    /// 1. Creates the store directory if it doesn't exist
+    /// 2. Sets ownership of the directory to the netpulse daemon user
+    ///
+    /// # Privilege Requirements
+    ///
+    /// This function requires root privileges because it:
+    /// - Creates directories in system locations (`/var/lib/netpulse`)
+    /// - Changes ownership of directories to the daemon user
+    ///
+    /// # Workflow
+    ///
+    /// The typical usage flow is:
+    /// 1. Call `Store::setup()` as root during daemon initialization
+    /// 2. Drop privileges to other user user
+    /// 3. Use [`Store::load_or_create`], [`Store::create()`] or [`Store::load()`] as lower priviledged user
+    ///
+    /// # Errors
+    ///
+    /// Returns [StoreError] if:
+    /// - Directory creation fails
+    /// - Ownership change fails
+    /// - Netpulse user doesn't exist in the system
+    ///
+    /// # Panics
+    ///
+    /// Panics if:
+    /// - Store path has no parent directory
+    /// - Unable to query system for netpulse user
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use netpulse::Store;
+    ///
+    /// // Must run as root
+    /// Store::setup()?;
+    ///
+    /// // Now can drop privileges to netpulse user
+    /// // and continue with normal store operations
+    /// let store = Store::load_or_create()?;
+    /// ```
+    pub fn setup() -> Result<(), StoreError> {
+        let path = Self::path();
+        let parent_path = path
+            .parent()
+            .expect("the store path has no parent directory");
+        let user = nix::unistd::User::from_name(DAEMON_USER)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+            .expect("could not get user for netpulse")
+            .ok_or_else(|| {
+                std::io::Error::new(std::io::ErrorKind::NotFound, "netpulse user not found")
+            })
+            .expect("could not get user for netpulse");
+
+        fs::create_dir_all(parent_path)?;
+        std::os::unix::fs::chown(parent_path, Some(user.uid.into()), Some(user.gid.into()))
+            .inspect_err(|e| {
+                eprintln!("could not set owner of store directory to the daemon user: {e}")
+            })?;
+        Ok(())
+    }
+
     /// Creates a new store file on disk.
     ///
     /// # File Creation
@@ -171,33 +236,13 @@ impl Store {
     /// - Serialization fails
     /// - Write fails
     pub fn create() -> Result<Self, StoreError> {
-        let path = Self::path();
-        let parent_path = path
-            .parent()
-            .expect("the store path has no parent directory");
-        let user = nix::unistd::User::from_name(DAEMON_USER)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
-            .expect("could not get user for netpulse")
-            .ok_or_else(|| {
-                std::io::Error::new(std::io::ErrorKind::NotFound, "netpulse user not found")
-            })
-            .expect("could not get user for netpulse");
-
-        eprintln!("current uid: {}", nix::unistd::getuid());
-
-        fs::create_dir_all(parent_path)?;
-        std::os::unix::fs::chown(parent_path, Some(user.uid.into()), Some(user.gid.into()))
-            .inspect_err(|e| {
-                eprintln!("could not set owner of store directory to the daemon user: {e}")
-            })?;
-
         let file = match fs::File::options()
             .read(false)
             .write(true)
             .append(false)
             .create_new(true)
             .mode(0o644)
-            .open(path)
+            .open(Self::path())
         {
             Ok(file) => file,
             Err(err) => {

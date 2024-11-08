@@ -26,6 +26,7 @@ use std::path::PathBuf;
 
 use daemonize::Daemonize;
 use getopts::Options;
+use netpulse::errors::DaemonError;
 use netpulse::store::Store;
 use netpulse::{DAEMON_LOG_ERR, DAEMON_LOG_INF, DAEMON_PID_FILE, DAEMON_USER};
 use nix::errno::Errno;
@@ -247,6 +248,10 @@ fn startd() {
         .group("netpulse")
         .stdout(logfile)
         .stderr(errfile)
+        .privileged_action(|| -> Result<(), DaemonError> {
+            Store::setup()?;
+            Ok(())
+        })
         .umask(0o022); // rw-r--r--
 
     println!("daemon setup done");
