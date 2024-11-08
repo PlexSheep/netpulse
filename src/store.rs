@@ -175,7 +175,13 @@ impl Store {
             .parent()
             .expect("the store path has no parent directory");
         fs::create_dir_all(parent_path)?;
-        std::fs::set_permissions(parent_path, Permissions::from_mode(0o644))?;
+        match std::fs::set_permissions(parent_path, Permissions::from_mode(0o644)) {
+            Ok(_) => (),
+            Err(e) => {
+                eprintln!("{e}");
+                return Err(e.into());
+            }
+        };
 
         let file = match fs::File::options()
             .read(false)
