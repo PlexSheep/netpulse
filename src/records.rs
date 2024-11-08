@@ -6,7 +6,7 @@ use std::time;
 use flagset::{flags, FlagSet};
 use serde::{Deserialize, Serialize};
 
-use crate::TIMEOUT;
+pub const TARGETS: &[&str] = &["1.1.1.1", "2606:4700:4700::1111", "127.0.0.1"];
 
 flags! {
     #[derive(Hash, Deserialize, Serialize)]
@@ -47,43 +47,31 @@ impl CheckType {
     ///
     /// This is the actual thing that carries out the checking
     pub fn make(&self) -> Check {
-        let mut check = Check::new(std::time::SystemTime::now(), FlagSet::default(), None);
+        let mut check = Check::new(std::time::SystemTime::now(), FlagSet::default(), None, 0);
 
         match self {
             Self::IcmpV4 => {
+                const TARGET_IDX: usize = 2;
                 check.add_flag(CheckFlag::IPv4);
-                if let Err(err) = ping::dgramsock::ping(
-                    IpAddr::from_str("1.1.1.1").unwrap(),
-                    Some(TIMEOUT),
-                    None,
-                    None,
-                    None,
-                    None,
-                ) {
-                    match err {
-                        _ => {
-                            eprintln!("unknown error when performing a icmpv4 (ping) check: {err}")
-                        }
-                    }
+                check.add_flag(CheckFlag::TypeIcmp);
+                check.set_target(TARGET_IDX);
+                if let Err(err) =
+                    crate::ping::just_fucking_ping(IpAddr::from_str(TARGETS[TARGET_IDX]).unwrap())
+                {
+                    eprintln!("unknown error when performing a icmpv4 (ping) check: {err}")
                 } else {
                     check.add_flag(CheckFlag::Success);
                 }
             }
             Self::IcmpV6 => {
+                const TARGET_IDX: usize = 1;
                 check.add_flag(CheckFlag::IPv6);
-                if let Err(err) = ping::dgramsock::ping(
-                    IpAddr::from_str("2606:4700:4700::1111").unwrap(),
-                    Some(TIMEOUT),
-                    None,
-                    None,
-                    None,
-                    None,
-                ) {
-                    match err {
-                        _ => {
-                            eprintln!("unknown error when performing a icmpv6 (ping) check: {err}")
-                        }
-                    }
+                check.add_flag(CheckFlag::TypeIcmp);
+                check.set_target(TARGET_IDX);
+                if let Err(err) =
+                    crate::ping::just_fucking_ping(IpAddr::from_str(TARGETS[TARGET_IDX]).unwrap())
+                {
+                    eprintln!("unknown error when performing a icmpv6 (ping) check: {err}")
                 } else {
                     check.add_flag(CheckFlag::Success);
                 }
@@ -133,6 +121,8 @@ pub struct Check {
     /// netpulse will only wait for [TIMEOUT_MS](crate::TIMEOUT_MS) milliseconds until deciding
     /// that a connection has timed out.
     latency: Option<u16>,
+    /// Index of the remote, based on [TARGETS]
+    target: usize,
 }
 
 impl Check {
@@ -141,6 +131,7 @@ impl Check {
         time: time::SystemTime,
         flags: impl Into<FlagSet<CheckFlag>>,
         latency: Option<u16>,
+        target_idx: usize,
     ) -> Self {
         Check {
             timestamp: time
@@ -149,6 +140,7 @@ impl Check {
                 .as_secs(),
             flags: flags.into(),
             latency,
+            target: target_idx,
         }
     }
 
@@ -208,6 +200,10 @@ impl Check {
             CheckType::Unknown
         }
     }
+
+    pub fn set_target(&mut self, target: usize) {
+        self.target = target;
+    }
 }
 
 impl Display for Check {
@@ -234,6 +230,7 @@ mod test {
             time::SystemTime::now(),
             CheckFlag::Success,
             Some(TIMEOUT_MS),
+            0,
         );
         // if it can be created, that's good enough for me, I'm just worried that I'll change the
         // timeout ms some day and this will break
