@@ -33,9 +33,7 @@ humantime = "2.1.0"
 [[bin]] # client
 name = "netpulse"
 path = "src/bins/netpulse.rs"
-doc = true
 
 [[bin]] # daemon and controlling it
 name = "netpulsed"
 path = "src/bins/netpulsed.rs"
-doc = true
