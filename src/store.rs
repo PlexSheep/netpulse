@@ -7,7 +7,7 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::StoreError;
-use crate::records::{Check, CheckType, TARGETS, TARGETS_HTTP};
+use crate::records::{Check, CheckType, TARGETS_HTTP};
 
 #[cfg(feature = "compression")]
 use zstd;
