@@ -8,6 +8,8 @@ pub const DAEMON_LOG_ERR: &str = "/var/log/netpulse.err";
 pub const DAEMON_LOG_INF: &str = "/var/log/netpulse.log";
 pub const DAEMON_USER: &str = "netpulse";
 
+/// Extrapolating the data of our checks to something more useful
+pub mod analyze;
 /// where the actual checks are made
 pub mod checks;
 /// error types

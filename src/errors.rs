@@ -1,3 +1,5 @@
+use core::error;
+
 use thiserror::Error;
 
 /// Could not convert from [CheckFlag](crate::records::CheckFlag) to [CheckType](crate::records::CheckType).
@@ -51,5 +53,19 @@ pub enum DaemonError {
     Io {
         #[from]
         source: std::io::Error,
+    },
+}
+
+#[derive(Error, Debug)]
+pub enum AnalysisError {
+    #[error("Something went wrong with the store")]
+    StoreError {
+        #[from]
+        source: StoreError,
+    },
+    #[error("Text Formatting error")]
+    Fmt {
+        #[from]
+        source: std::fmt::Error,
     },
 }

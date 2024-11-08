@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use getopts::Options;
+use netpulse::analyze;
 use netpulse::records::{Check, CheckType, TARGETS_HTTP};
 use netpulse::store::Store;
 
@@ -25,7 +26,7 @@ fn main() {
     } else if matches.opt_present("test") {
         test_checks();
     } else {
-        analyze();
+        analysis();
     }
 }
 
@@ -43,14 +44,13 @@ fn test_checks() {
     }
 }
 
-fn analyze() {
+fn analysis() {
     let store = Store::load().expect("store file not found");
-    let checks = store.checks();
-    let successes: Vec<&Check> = checks.iter().filter(|c| c.is_success()).collect();
-    println!("store contains {:09} checks.", checks.len());
-    println!("store contains {:09} successful checks.", successes.len());
-    println!(
-        "success ratio: {:02.02}%",
-        (successes.len() as f64 / checks.len() as f64) * 100.0
-    )
+    match analyze::analyze(&store) {
+        Err(e) => {
+            eprintln!("Error while making the analysis: {e}");
+            std::process::exit(1);
+        }
+        Ok(report) => println!("{report}"),
+    }
 }

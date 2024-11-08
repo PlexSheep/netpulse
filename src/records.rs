@@ -1,6 +1,6 @@
 use std::fmt::Display;
 use std::net::IpAddr;
-use std::time;
+use std::time::{self, SystemTime};
 
 use flagset::{flags, FlagSet};
 use serde::{Deserialize, Serialize};
@@ -161,7 +161,7 @@ impl Display for CheckType {
 /// Information about connectivity
 #[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Clone, Copy)]
 pub struct Check {
-    /// Unix timestamp
+    /// Unix timestamp (seconds since [UNIX_EPOCH](time::UNIX_EPOCH))
     timestamp: u64,
     /// Describes how the [Check] went.
     ///
@@ -223,6 +223,11 @@ impl Check {
         self.timestamp
     }
 
+    /// Returns the timestamp of this [`Check`] as [SystemTime](std::time::SystemTime).
+    pub fn timestamp_parsed(&self) -> time::SystemTime {
+        time::UNIX_EPOCH + time::Duration::from_secs(self.timestamp())
+    }
+
     /// Returns a mutable reference to the flags of this [`Check`].
     pub fn flags_mut(&mut self) -> &mut FlagSet<CheckFlag> {
         &mut self.flags
@@ -262,12 +267,13 @@ impl Display for Check {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(
             f,
-            "Type: {}\nOk: {}\nTarget: {}",
+            "Time: {}\nType: {}\nOk: {}\nTarget: {}",
+            humantime::format_rfc3339_seconds(self.timestamp_parsed()),
             self.calc_type(),
             self.is_success(),
             self.target
         )?;
-        writeln!(f, "Latency: {}", {
+        write!(f, "Latency: {}", {
             match self.latency() {
                 Some(l) => format!("{l} ms"),
                 None => "(Error)".to_string(),
