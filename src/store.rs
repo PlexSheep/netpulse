@@ -190,14 +190,14 @@ impl Store {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use netpulse::Store;
+    /// use netpulse::store::Store;
     ///
     /// // Must run as root
-    /// Store::setup()?;
+    /// Store::setup().unwrap();
     ///
     /// // Now can drop privileges to netpulse user
     /// // and continue with normal store operations
-    /// let store = Store::load_or_create()?;
+    /// let store = Store::load_or_create().unwrap();
     /// ```
     pub fn setup() -> Result<(), StoreError> {
         let path = Self::path();
