@@ -1,11 +1,11 @@
 use std::fmt::Display;
 use std::net::IpAddr;
-use std::str::FromStr;
 use std::time;
 
 use flagset::{flags, FlagSet};
 use serde::{Deserialize, Serialize};
 
+// NOTE: ONLY PUT VALID IP ADDRESSES HERE!
 pub const TARGETS: &[&str] = &["1.1.1.1", "2606:4700:4700::1111", "127.0.0.1"];
 
 flags! {
@@ -46,17 +46,24 @@ impl CheckType {
     /// Make a new [Check] of this type.
     ///
     /// This is the actual thing that carries out the checking
-    pub fn make(&self) -> Check {
-        let mut check = Check::new(std::time::SystemTime::now(), FlagSet::default(), None, 0);
+    pub fn make(&self, remote: IpAddr) -> Check {
+        let mut check = Check::new(
+            std::time::SystemTime::now(),
+            FlagSet::default(),
+            None,
+            remote,
+        );
+
+        match remote {
+            IpAddr::V4(_) => check.add_flag(CheckFlag::IPv4),
+            IpAddr::V6(_) => check.add_flag(CheckFlag::IPv6),
+        }
 
         match self {
             #[cfg(feature = "http")]
             Self::Http => {
-                const TARGET_IDX: usize = 0;
-                check.add_flag(CheckFlag::IPv4);
                 check.add_flag(CheckFlag::TypeHTTP);
-                check.set_target(TARGET_IDX);
-                match crate::checks::check_http(IpAddr::from_str(TARGETS[TARGET_IDX]).unwrap()) {
+                match crate::checks::check_http(remote) {
                     Err(err) => {
                         eprintln!("unknown error when performing a Http check: {err}")
                     }
@@ -66,16 +73,15 @@ impl CheckType {
                     }
                 }
             }
+            #[cfg(not(feature = "http"))]
+            Self::Http => {
+                panic!("Trying to make a http check, but the http feature is not enabled")
+            }
 
             #[cfg(feature = "ping")]
             Self::IcmpV4 => {
-                const TARGET_IDX: usize = 0;
-                check.add_flag(CheckFlag::IPv4);
                 check.add_flag(CheckFlag::TypeIcmp);
-                check.set_target(TARGET_IDX);
-                match crate::checks::just_fucking_ping(
-                    IpAddr::from_str(TARGETS[TARGET_IDX]).unwrap(),
-                ) {
+                match crate::checks::just_fucking_ping(remote) {
                     Err(err) => {
                         eprintln!("unknown error when performing a ICMPv4 (ping) check: {err}")
                     }
@@ -85,15 +91,14 @@ impl CheckType {
                     }
                 }
             }
+            #[cfg(not(feature = "ping"))]
+            Self::IcmpV4 => {
+                panic!("Trying to make a ICMPv4 check, but the ping feature is not enabled")
+            }
             #[cfg(feature = "ping")]
             Self::IcmpV6 => {
-                const TARGET_IDX: usize = 1;
-                check.add_flag(CheckFlag::IPv6);
                 check.add_flag(CheckFlag::TypeIcmp);
-                check.set_target(TARGET_IDX);
-                match crate::checks::just_fucking_ping(
-                    IpAddr::from_str(TARGETS[TARGET_IDX]).unwrap(),
-                ) {
+                match crate::checks::just_fucking_ping(remote) {
                     Err(err) => {
                         eprintln!("unknown error when performing a ICMPv6 (ping) check: {err}")
                     }
@@ -103,8 +108,15 @@ impl CheckType {
                     }
                 }
             }
-            _ => {
-                eprintln!("skipping unimplemented check")
+            #[cfg(not(feature = "ping"))]
+            Self::IcmpV6 => {
+                panic!("Trying to make a ICMPv6 check, but the ping feature is not enabled")
+            }
+            Self::Unknown => {
+                panic!("tried to make an Unknown check");
+            }
+            Self::Dns => {
+                todo!("dns not done yet")
             }
         }
 
@@ -158,7 +170,7 @@ pub struct Check {
     /// that a connection has timed out.
     latency: Option<u16>,
     /// Index of the remote, based on [TARGETS]
-    target: usize,
+    target: IpAddr,
 }
 
 impl Check {
@@ -167,7 +179,7 @@ impl Check {
         time: time::SystemTime,
         flags: impl Into<FlagSet<CheckFlag>>,
         latency: Option<u16>,
-        target_idx: usize,
+        target: IpAddr,
     ) -> Self {
         Check {
             timestamp: time
@@ -176,7 +188,7 @@ impl Check {
                 .as_secs(),
             flags: flags.into(),
             latency,
-            target: target_idx,
+            target,
         }
     }
 
@@ -237,7 +249,7 @@ impl Check {
         }
     }
 
-    pub fn set_target(&mut self, target: usize) {
+    pub fn set_target(&mut self, target: IpAddr) {
         self.target = target;
     }
 }
@@ -266,7 +278,7 @@ mod test {
             time::SystemTime::now(),
             CheckFlag::Success,
             Some(TIMEOUT_MS),
-            0,
+            "127.0.0.1".parse().unwrap(),
         );
         // if it can be created, that's good enough for me, I'm just worried that I'll change the
         // timeout ms some day and this will break

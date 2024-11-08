@@ -2,11 +2,12 @@ use std::fs;
 use std::io::{ErrorKind, Write};
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
 use crate::errors::StoreError;
-use crate::records::{Check, CheckType};
+use crate::records::{Check, CheckType, TARGETS};
 
 #[cfg(feature = "compression")]
 use zstd;
@@ -177,12 +178,19 @@ impl Store {
     }
 
     pub fn period_seconds(&self) -> u64 {
-        30
+        5
     }
 
     pub fn make_checks(&mut self) {
         for check_type in CheckType::default_enabled() {
-            self.checks.push(check_type.make());
+            for target in TARGETS {
+                self.checks.push(
+                    check_type.make(
+                        std::net::IpAddr::from_str(target)
+                            .expect("a target constant was not an Ip Address"),
+                    ),
+                );
+            }
         }
     }
 }

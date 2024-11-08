@@ -1,5 +1,7 @@
+use std::str::FromStr;
+
 use getopts::Options;
-use netpulse::records::{Check, CheckType};
+use netpulse::records::{Check, CheckType, TARGETS};
 use netpulse::store::Store;
 
 fn main() {
@@ -34,8 +36,13 @@ fn print_usage(program: &str, opts: Options) {
 
 fn test_checks() {
     for check_type in CheckType::default_enabled() {
-        let check = check_type.make();
-        println!("{check}");
+        for target in TARGETS {
+            let check = check_type.make(
+                std::net::IpAddr::from_str(target)
+                    .expect("a target constant was not an Ip Address"),
+            );
+            println!("{check}");
+        }
     }
 }
 
