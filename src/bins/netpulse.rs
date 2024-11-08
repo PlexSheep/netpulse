@@ -29,6 +29,7 @@ fn main() {
         Ok(m) => m,
         Err(f) => {
             eprintln!("{f}");
+            print_usage(program, opts);
             std::process::exit(1)
         }
     };
