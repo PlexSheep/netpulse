@@ -273,10 +273,15 @@ impl Store {
             .open(Self::path())
         {
             Ok(file) => file,
-            Err(err) => match err.kind() {
-                ErrorKind::NotFound => return Err(StoreError::DoesNotExist),
-                _ => return Err(err.into()),
-            },
+            Err(err) => {
+                match err.kind() {
+                    ErrorKind::NotFound => return Err(StoreError::DoesNotExist),
+                    ErrorKind::PermissionDenied => eprintln!("Not allowed to access store"),
+                    _ => (),
+                };
+
+                return Err(err.into());
+            }
         };
 
         #[cfg(feature = "compression")]
