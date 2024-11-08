@@ -2,6 +2,40 @@
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/PlexSheep/netpulse/compare/v0.1.0...v0.2.0)
+
+### ⛰️ Features
+
+- *(analyze)* Add ipv4 and ipv6 section - ([78c6575](https://github.com/PlexSheep/netpulse/commit/78c657535ee48f2b2144174d55b1012a8f1b7fcc))
+- *(checks)* Ip_type and get_hash - ([90c691a](https://github.com/PlexSheep/netpulse/commit/90c691ab8e378baaa46a57280c4b8cd771fe5e2b))
+- *(error)* Add AmbiguousFlags and MissingFlags errors - ([a5dedf9](https://github.com/PlexSheep/netpulse/commit/a5dedf90d6c91d23bef7cf582e3174b9cd2259f0))
+
+### 🐛 Bug Fixes
+
+- *(cli)* Print usage when bad options are given - ([3f2cd27](https://github.com/PlexSheep/netpulse/commit/3f2cd270f678de05640dcbfaa49c8851bee0c572))
+- *(cli)* Don't panic when a bad option is passed - ([599ba77](https://github.com/PlexSheep/netpulse/commit/599ba77116ec5dd3dd0a9ff54011cd070852dfb0))
+- *(daemon)* Daemon paniced when loading failed - ([4337bc3](https://github.com/PlexSheep/netpulse/commit/4337bc3cb620902a75c14e0d152410450d081667))
+- *(store)* Chown instead of chmod - ([99135a0](https://github.com/PlexSheep/netpulse/commit/99135a08fbe91d08b269ccab62b0ee7305e7e310))
+- *(store)* Setperms fails, print more info - ([dd8465f](https://github.com/PlexSheep/netpulse/commit/dd8465fa83fa35112179d8db65a645a54c7f7b8b))
+- *(store)* Chown store directory after creating it - ([dbd7eb3](https://github.com/PlexSheep/netpulse/commit/dbd7eb36645ef5a8ff562d54430e485464bbdaca))
+- Show source for errors - ([a8adacc](https://github.com/PlexSheep/netpulse/commit/a8adacc6ea8fc21e3cff6139aea517b72ec5d3d8))
+
+### 🚜 Refactor
+
+- *(cli)* Remove daemon --fail - ([d99d5f6](https://github.com/PlexSheep/netpulse/commit/d99d5f6aa42866022fd430db8eadafa5970294e5))
+- *(daemon)* Cleanup when store load does not work - ([50097df](https://github.com/PlexSheep/netpulse/commit/50097df0a0aa4dba6ec2af1373ed1b43dd48153f))
+- *(store)* Add a setup function so that the setup can run as root - ([51edeab](https://github.com/PlexSheep/netpulse/commit/51edeab48b539f93eae93757d0638e83de720a84))
+- *(store)* Print additional err messages in store create - ([9b92c88](https://github.com/PlexSheep/netpulse/commit/9b92c88955be83f64aeee57d0ceba24b679c2471))
+
+### 📚 Documentation
+
+- *(api)* Fix Store::setup example - ([9d7792f](https://github.com/PlexSheep/netpulse/commit/9d7792f177105355406a9417242a9447d75e34d5))
+
+### ⚙️ Miscellaneous Tasks
+
+- Automatic Rust CI changes - ([526f2d2](https://github.com/PlexSheep/netpulse/commit/526f2d2eac3d018c6bdc4a605f263ae075995288))
+
+
 ## [0.1.0]
 
 ### ⛰️ Features
