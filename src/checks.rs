@@ -29,6 +29,7 @@ pub fn check_http(remote: IpAddr) -> Result<u16, CheckError> {
         IpAddr::V6(_) => format!("[{remote}]"),
     })?;
     easy.nobody(true)?; // HEAD request only
+    easy.timeout(TIMEOUT)?;
     easy.perform()?;
 
     Ok(start.elapsed().as_millis() as u16)
