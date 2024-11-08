@@ -7,7 +7,7 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::StoreError;
-use crate::records::{Check, CheckType, TARGETS};
+use crate::records::{Check, CheckType, TARGETS, TARGETS_HTTP};
 
 #[cfg(feature = "compression")]
 use zstd;
@@ -182,15 +182,13 @@ impl Store {
     }
 
     pub fn make_checks(&mut self) {
-        for check_type in CheckType::default_enabled() {
-            for target in TARGETS {
-                self.checks.push(
-                    check_type.make(
-                        std::net::IpAddr::from_str(target)
-                            .expect("a target constant was not an Ip Address"),
-                    ),
-                );
-            }
+        for target in TARGETS_HTTP {
+            self.checks.push(
+                CheckType::Http.make(
+                    std::net::IpAddr::from_str(target)
+                        .expect("a target constant was not an Ip Address"),
+                ),
+            );
         }
     }
 }

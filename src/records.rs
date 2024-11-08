@@ -6,7 +6,11 @@ use flagset::{flags, FlagSet};
 use serde::{Deserialize, Serialize};
 
 // NOTE: ONLY PUT VALID IP ADDRESSES HERE!
+//
+/// IPs which are used in checks
 pub const TARGETS: &[&str] = &["1.1.1.1", "2606:4700:4700::1111", "127.0.0.1"];
+/// Which [TARGETS] to use for HTTP Checks
+pub const TARGETS_HTTP: &[&str] = &[TARGETS[0], TARGETS[1]];
 
 flags! {
     #[derive(Hash, Deserialize, Serialize)]
