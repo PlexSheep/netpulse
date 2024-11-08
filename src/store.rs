@@ -101,7 +101,7 @@ impl Store {
         }
     }
 
-    fn create() -> Result<Self, StoreError> {
+    pub fn create() -> Result<Self, StoreError> {
         fs::create_dir_all(
             Self::path()
                 .parent()
