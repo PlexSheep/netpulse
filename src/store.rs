@@ -183,8 +183,13 @@ impl Store {
             })
             .expect("could not get user for netpulse");
 
+        eprintln!("current uid: {}", nix::unistd::getuid());
+
         fs::create_dir_all(parent_path)?;
-        std::os::unix::fs::chown(parent_path, Some(user.uid.into()), Some(user.gid.into()))?;
+        std::os::unix::fs::chown(parent_path, Some(user.uid.into()), Some(user.gid.into()))
+            .inspect_err(|e| {
+                eprintln!("could not set owner of store directory to the daemon user: {e}")
+            })?;
 
         let file = match fs::File::options()
             .read(false)
@@ -195,7 +200,10 @@ impl Store {
             .open(path)
         {
             Ok(file) => file,
-            Err(err) => return Err(err.into()),
+            Err(err) => {
+                eprintln!("opening the store file for writing failed: {err}");
+                return Err(err.into());
+            }
         };
 
         let store = Store::new();
