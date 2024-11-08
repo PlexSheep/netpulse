@@ -32,27 +32,57 @@ use crate::records::{Check, CheckType, TARGETS_HTTP};
 #[cfg(feature = "compression")]
 use zstd;
 
-/// The filename of the database, in [DB_PATH]
+/// The filename of the netpulse store database
+///
+/// Used in combination with [DB_PATH] to form the complete store path.
+/// Default value: "netpulse.store"
 pub const DB_NAME: &str = "netpulse.store";
-/// Path to the database of netpulse (combine with [DB_NAME])
+
+/// Base directory for the netpulse store
+///
+/// Used in combination with [DB_NAME] to form the complete store path.
+/// Default value: "/var/lib/netpulse"
 pub const DB_PATH: &str = "/var/lib/netpulse";
+
+/// Compression level used when the "compression" feature is enabled
+///
+/// Higher values provide better compression but slower performance.
+/// Default value: 4 (balanced between compression and speed)
 #[cfg(feature = "compression")]
 pub const ZSTD_COMPRESSION_LEVEL: i32 = 4;
+
+/// Environment variable name for overriding the store path
+///
+/// If set, its value will be used instead of [DB_PATH] to locate the store.
+/// Primarily intended for development and testing.
 pub const ENV_PATH: &str = "NETPULSE_STORE_PATH";
 
-/// A version of the [Store].
+/// Version information for the store format.
 ///
 /// The [Store] definition might change over time as netpulse is developed. To work with older or
 /// newer [Stores](Store), we need to be able to easily distinguish between versions. The store
 /// version is just stored as a [u8].
+///
+/// See [Version::CURRENT] for the current version and [Version::SUPPORTED] for all store versions
+/// supported by this version of Netpulse
+///
+/// This only describes the version of the [Store], not of [Netpulse](crate) itself.
 #[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Version {
+    /// Raw version number as u8
     inner: u8,
 }
 
+/// Main storage type for netpulse check results.
+///
+/// The Store handles persistence of check results and provides methods for
+/// loading, saving, and managing the data. It includes versioning support
+/// for future format changes.
 #[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Store {
+    /// Store format version
     version: Version,
+    /// Collection of all recorded checks
     checks: Vec<Check>,
 }
 
@@ -75,15 +105,35 @@ impl From<Version> for u8 {
 }
 
 impl Version {
+    /// Current version of the store format
     pub const CURRENT: Self = Version::new(0);
+
+    /// List of supported store format versions
+    ///
+    /// Used for compatibility checking when loading stores.
     pub const SUPPROTED: &[Self] = &[Version::new(0)];
 
+    /// Creates a new Version with the given raw version number
     pub(crate) const fn new(raw: u8) -> Self {
         Self { inner: raw }
     }
 }
 
 impl Store {
+    /// Returns the full path to the store file.
+    ///
+    /// The path is determined by:
+    /// 1. Checking [ENV_PATH] environment variable
+    /// 2. Falling back to [DB_PATH]/[DB_NAME] if not set
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use netpulse::store::Store;
+    ///
+    /// let path = Store::path();
+    /// println!("Store located at: {}", path.display());
+    /// ```
     pub fn path() -> PathBuf {
         if let Some(var) = std::env::var_os(ENV_PATH) {
             let mut p = PathBuf::from(var);
@@ -94,6 +144,9 @@ impl Store {
         }
     }
 
+    /// Creates a new empty store with current version.
+    ///
+    /// Used internally by [create](Store::create) when initializing a new store.
     fn new() -> Self {
         Self {
             version: Version::CURRENT,
@@ -101,6 +154,21 @@ impl Store {
         }
     }
 
+    /// Creates a new store file on disk.
+    ///
+    /// # File Creation
+    /// - Creates parent directories if needed
+    /// - Sets file permissions to 0o644
+    /// - Initializes with empty check list
+    /// - Optionally compresses data if compression feature is enabled
+    ///
+    /// # Errors
+    ///
+    /// Returns [StoreError] if:
+    /// - Directory creation fails
+    /// - File creation fails
+    /// - Serialization fails
+    /// - Write fails
     pub fn create() -> Result<Self, StoreError> {
         fs::create_dir_all(
             Self::path()
@@ -132,6 +200,25 @@ impl Store {
         Ok(store)
     }
 
+    /// Loads existing store or creates new one if not found.
+    ///
+    /// This is the recommended way to obtain the [Store] when not just analyzing the contents.
+    ///
+    /// # Error Handling
+    ///
+    /// - If store doesn't exist: Creates new one
+    /// - If store is corrupt/truncated: Returns error but preserves file
+    /// - If version unsupported: Returns error
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use netpulse::store::Store;
+    ///
+    /// let mut store = Store::load_or_create().unwrap();
+    /// store.make_checks();
+    /// store.save().unwrap();
+    /// ```
     pub fn load_or_create() -> Result<Self, StoreError> {
         match Self::load() {
             Ok(store) => Ok(store),
@@ -162,6 +249,22 @@ impl Store {
         }
     }
 
+    /// Loads an existing store from disk.
+    ///
+    /// This is the recommended way to obtain a store instance when the [Store] won't change.
+    ///
+    /// # Version Handling
+    ///
+    /// - Checks version compatibility
+    /// - Automatically migrates supported old versions in memory
+    /// - Returns error for unsupported versions
+    ///
+    /// # Errors
+    ///
+    /// Returns [StoreError] if:
+    /// - Store file doesn't exist
+    /// - Read/parse fails
+    /// - Version unsupported
     pub fn load() -> Result<Self, StoreError> {
         let file = match fs::File::options()
             .read(true)
@@ -197,6 +300,20 @@ impl Store {
         Ok(store)
     }
 
+    /// Saves the store to disk.
+    ///
+    /// # File Handling
+    ///
+    /// - Truncates existing file
+    /// - Optionally compresses if feature enabled
+    /// - Maintains original permissions
+    ///
+    /// # Errors
+    ///
+    /// Returns [StoreError] if:
+    /// - File doesn't exist
+    /// - Write fails
+    /// - Serialization fails
     pub fn save(&self) -> Result<(), StoreError> {
         let file = match fs::File::options()
             .read(false)
@@ -224,29 +341,47 @@ impl Store {
         Ok(())
     }
 
+    /// Adds a new check to the store.
     pub fn add_check(&mut self, check: impl Into<Check>) {
         self.checks.push(check.into());
     }
 
+    /// Returns a reference to the checks of this [`Store`].
     pub fn checks(&self) -> &[Check] {
         &self.checks
     }
 
-    /// Check every _ seconds
+    /// Returns the check interval in seconds.
+    ///
+    /// This determines how frequently the daemon performs checks.
+    /// Currently fixed at 60 seconds.
     pub const fn period_seconds(&self) -> u64 {
         60
     }
 
-    /// Hash this database (in memory)
+    /// Generates a hash of the in-memory store data.
+    ///
+    /// Uses [DefaultHasher](std::hash::DefaultHasher) to create a 16-character hexadecimal hash
+    /// of the entire store contents. Useful for detecting changes.
     pub fn display_hash(&self) -> String {
         let mut hasher = std::hash::DefaultHasher::default();
         self.hash(&mut hasher);
         format!("{:016X}", hasher.finish())
     }
 
-    /// Hash this database (the store file in the real filesystem)
+    /// Generates SHA-256 hash of the store file on disk.
     ///
-    /// Uses `sha256sum`
+    /// This calls `sha256sum` on the store file.
+    ///
+    /// # External Dependencies
+    ///
+    /// Requires `sha256sum` command to be available in PATH.
+    ///
+    /// # Errors
+    ///
+    /// Returns [StoreError] if:
+    /// - sha256sum command fails
+    /// - Output parsing fails
     pub fn display_hash_of_file(&self) -> Result<String, StoreError> {
         let out = Command::new("sha256sum").arg(Self::path()).output()?;
 
@@ -264,6 +399,13 @@ impl Store {
             .to_string())
     }
 
+    /// Creates and adds checks for all configured targets.
+    ///
+    /// Iterates through [TARGETS_HTTP] and creates an HTTP check
+    /// for each target IP address.
+    ///
+    /// Only HTTP checks are done for now, as ICMP needs `CAP_NET_RAW` and DNS is not yet
+    /// implemented.
     pub fn make_checks(&mut self) {
         for target in TARGETS_HTTP {
             self.checks.push(
