@@ -8,8 +8,8 @@ authors = ["Christoph J. Scherr <software@cscherr.de>"]
 license = "MIT"
 description = "Keep track of if your internet is still alive, collect stats against a crappy ISP"
 readme = "README.md"
-homepage = "https://github.com/PlexSheep/kauma"
-repository = "https://github.com/PlexSheep/kauma"
+homepage = "https://github.com/PlexSheep/netpulse"
+repository = "https://github.com/PlexSheep/netpulse"
 
 [features]
 default = ["compression", "http"]
