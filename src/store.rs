@@ -28,6 +28,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::StoreError;
 use crate::records::{Check, CheckType, TARGETS_HTTP};
+use crate::DAEMON_USER;
 
 #[cfg(feature = "compression")]
 use zstd;
@@ -174,14 +175,16 @@ impl Store {
         let parent_path = path
             .parent()
             .expect("the store path has no parent directory");
+        let user = nix::unistd::User::from_name(DAEMON_USER)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+            .expect("could not get user for netpulse")
+            .ok_or_else(|| {
+                std::io::Error::new(std::io::ErrorKind::NotFound, "netpulse user not found")
+            })
+            .expect("could not get user for netpulse");
+
         fs::create_dir_all(parent_path)?;
-        match std::fs::set_permissions(parent_path, Permissions::from_mode(0o644)) {
-            Ok(_) => (),
-            Err(e) => {
-                eprintln!("{e}");
-                return Err(e.into());
-            }
-        };
+        std::os::unix::fs::chown(parent_path, Some(user.uid.into()), Some(user.gid.into()))?;
 
         let file = match fs::File::options()
             .read(false)
