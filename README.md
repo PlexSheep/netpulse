@@ -63,3 +63,10 @@ and analyze the store.
 * `/var/lib/netpulse/netpuse.store` – the database where your checks are stored
 * `/var/log/netpulse.log` – contains the stdout of the daemon
 * `/var/log/netpulse.err` – contains the stderr of the daemon
+
+### Targets
+
+The target IPs with which checks are made are defined in the constant `TARGETS` [here](./src/records.rs).
+
+Currently, it boils down to `1.1.1.1` (cloudflare's DNS server), and the 
+respective IPv6 adress of that.
