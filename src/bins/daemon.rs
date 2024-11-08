@@ -1,10 +1,10 @@
 //! Core daemon process that runs network checks at regular intervals.
 //!
 //! The daemon:
-//! - Loads or creates a [Store](crate::store::Store)
-//! - Runs checks every [period_seconds](crate::store::Store::period_seconds)
+//! - Loads or creates a [Store]
+//! - Runs checks every [period_seconds](netpulse::store::Store::period_seconds)
 //! - Handles graceful shutdown on SIGTERM
-//! - Maintains PID file at [DAEMON_PID_FILE](crate::DAEMON_PID_FILE)
+//! - Maintains PID file at [DAEMON_PID_FILE]
 //!
 //! # Signal Handling
 //!

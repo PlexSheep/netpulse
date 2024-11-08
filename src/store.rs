@@ -63,7 +63,7 @@ pub const ENV_PATH: &str = "NETPULSE_STORE_PATH";
 /// newer [Stores](Store), we need to be able to easily distinguish between versions. The store
 /// version is just stored as a [u8].
 ///
-/// See [Version::CURRENT] for the current version and [Version::SUPPORTED] for all store versions
+/// See [Version::CURRENT] for the current version and [Version::SUPPROTED] for all store versions
 /// supported by this version of Netpulse
 ///
 /// This only describes the version of the [Store], not of [Netpulse](crate) itself.

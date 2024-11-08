@@ -2,7 +2,7 @@
 //!
 //! # Analysis Features
 //!
-//! This module analyzes data from the [Store](crate::store::Store) to provide:
+//! This module analyzes data from the [Store] to provide:
 //! - Outage detection and tracking
 //! - Success/failure statistics per check type
 //! - Latency analysis

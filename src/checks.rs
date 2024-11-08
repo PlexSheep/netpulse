@@ -60,7 +60,7 @@ use crate::TIMEOUT;
 ///
 /// Returns `CheckError` if:
 /// - Raw socket creation fails (typically due to missing CAP_NET_RAW)
-/// - Ping times out ([`TIMEOUT`](crate::TIMEOUT))
+/// - Ping times out ([`TIMEOUT`])
 /// - Network is unreachable
 /// - Permission denied
 ///
@@ -107,7 +107,7 @@ pub fn just_fucking_ping(remote: IpAddr) -> Result<u16, CheckError> {
 /// Returns `CheckError` if:
 /// - DNS resolution fails
 /// - Connection fails or is refused
-/// - Request times out ([`TIMEOUT`](crate::TIMEOUT))
+/// - Request times out ([`TIMEOUT`])
 /// - HTTP response indicates error
 /// - URL construction fails
 ///
