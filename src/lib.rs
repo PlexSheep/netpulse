@@ -13,16 +13,16 @@
 //! # Example Usage
 //!
 //! ```rust,no_run
-//! use netpulse::{Store, CheckType};
+//! use netpulse::store::Store;
 //!
 //! // Load or create store
-//! let mut store = Store::load_or_create()?;
+//! let mut store = Store::load_or_create().unwrap();
 //!
 //! // Add checks for configured targets
 //! store.make_checks();
 //!
 //! // Save results
-//! store.save()?;
+//! store.save().unwrap();
 //! ```
 
 #![warn(missing_docs)]
@@ -41,13 +41,8 @@ pub const DAEMON_LOG_INF: &str = "/var/log/netpulse.log";
 /// username of the user the daemon should drop to after being started
 pub const DAEMON_USER: &str = "netpulse";
 
-/// Extrapolating the data of our checks to something more useful
 pub mod analyze;
-/// where the actual checks are made
 pub mod checks;
-/// error types
 pub mod errors;
-/// check records that are put in the store, and working with them
 pub mod records;
-/// the store contains all info, is written and loaded to and from the disk
 pub mod store;

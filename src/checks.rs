@@ -22,7 +22,7 @@
 //! use netpulse::checks;
 //! use std::net::IpAddr;
 //!
-//! let addr: IpAddr = "1.1.1.1".parse()?;
+//! let addr: IpAddr = "1.1.1.1".parse().unwrap();
 //!
 //! // Perform HTTP check
 //! if let Ok(latency) = checks::check_http(addr) {

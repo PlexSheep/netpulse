@@ -25,10 +25,10 @@
 //! # Example
 //!
 //! ```rust
-//! use netpulse::{CheckType, Check};
+//! use netpulse::records::{CheckType, Check};
 //!
 //! // Create new HTTP check
-//! let check = CheckType::Http.make("1.1.1.1".parse()?);
+//! let check = CheckType::Http.make("1.1.1.1".parse().unwrap());
 //!
 //! // Access check results
 //! if check.is_success() {

@@ -14,10 +14,10 @@
 //! # Examples
 //!
 //! ```rust,no_run
-//! use netpulse::{Store, analyze};
+//! use netpulse::{store::Store, analyze};
 //!
-//! let store = Store::load()?;
-//! let report = analyze::analyze(&store)?;
+//! let store = Store::load().unwrap();
+//! let report = analyze::analyze(&store).unwrap();
 //! println!("{}", report);
 //! ```
 //!
@@ -117,10 +117,10 @@ pub fn display_group(group: &[&Check], f: &mut String) -> Result<(), AnalysisErr
 /// # Example
 ///
 /// ```rust,no_run
-/// use netpulse::{Store, analyze};
+/// use netpulse::{store::Store, analyze};
 ///
-/// let store = Store::load()?;
-/// let report = analyze::analyze(&store)?;
+/// let store = Store::load().unwrap();
+/// let report = analyze::analyze(&store).unwrap();
 /// println!("{}", report);
 /// ```
 pub fn analyze(store: &Store) -> Result<String, AnalysisError> {
