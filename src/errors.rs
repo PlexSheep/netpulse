@@ -26,10 +26,17 @@ pub enum CheckError {
         #[from]
         source: std::io::Error,
     },
+    #[cfg(feature = "ping")]
     #[error("Ping Error")]
     Ping {
         #[from]
         source: ping::Error,
+    },
+    #[cfg(feature = "http")]
+    #[error("Http Error")]
+    Http {
+        #[from]
+        source: curl::Error,
     },
 }
 

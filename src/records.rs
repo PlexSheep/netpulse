@@ -50,13 +50,32 @@ impl CheckType {
         let mut check = Check::new(std::time::SystemTime::now(), FlagSet::default(), None, 0);
 
         match self {
+            #[cfg(feature = "http")]
+            Self::Http => {
+                const TARGET_IDX: usize = 0;
+                check.add_flag(CheckFlag::IPv4);
+                check.add_flag(CheckFlag::TypeHTTP);
+                check.set_target(TARGET_IDX);
+                match crate::checks::check_http(IpAddr::from_str(TARGETS[TARGET_IDX]).unwrap()) {
+                    Err(err) => {
+                        eprintln!("unknown error when performing a Http check: {err}")
+                    }
+                    Ok(lat) => {
+                        check.add_flag(CheckFlag::Success);
+                        check.latency = Some(lat);
+                    }
+                }
+            }
+
+            #[cfg(feature = "ping")]
             Self::IcmpV4 => {
                 const TARGET_IDX: usize = 0;
                 check.add_flag(CheckFlag::IPv4);
                 check.add_flag(CheckFlag::TypeIcmp);
                 check.set_target(TARGET_IDX);
-                match crate::ping::just_fucking_ping(IpAddr::from_str(TARGETS[TARGET_IDX]).unwrap())
-                {
+                match crate::checks::just_fucking_ping(
+                    IpAddr::from_str(TARGETS[TARGET_IDX]).unwrap(),
+                ) {
                     Err(err) => {
                         eprintln!("unknown error when performing a ICMPv4 (ping) check: {err}")
                     }
@@ -66,13 +85,15 @@ impl CheckType {
                     }
                 }
             }
+            #[cfg(feature = "ping")]
             Self::IcmpV6 => {
                 const TARGET_IDX: usize = 1;
                 check.add_flag(CheckFlag::IPv6);
                 check.add_flag(CheckFlag::TypeIcmp);
                 check.set_target(TARGET_IDX);
-                match crate::ping::just_fucking_ping(IpAddr::from_str(TARGETS[TARGET_IDX]).unwrap())
-                {
+                match crate::checks::just_fucking_ping(
+                    IpAddr::from_str(TARGETS[TARGET_IDX]).unwrap(),
+                ) {
                     Err(err) => {
                         eprintln!("unknown error when performing a ICMPv6 (ping) check: {err}")
                     }
