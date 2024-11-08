@@ -11,3 +11,15 @@ Keep track of your internet connection with a daemon
 * [GitHub](https://github.com/PlexSheep/netpulse)
 * [crates.io](https://crates.io/crates/netpulse)
 * [docs.rs](https://docs.rs/crate/netpulse/)
+
+## PING DOES NOT WORK
+
+To use ping/ICMP, the program needs `CAP_NET_RAW` capabilities. This can't be
+done with cargo.
+
+Run the following as root to add the capabilities to the executables.
+
+```bash
+setcap cap_net_raw+ep $(which netpulsed)
+setcap cap_net_raw+ep $(which netpulse)
+```
