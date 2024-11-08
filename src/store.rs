@@ -189,7 +189,6 @@ impl Store {
             if Version::SUPPROTED.contains(&store.version) {
                 eprintln!("The old store version is still supported, migrating to newer version");
                 store.version = Version::CURRENT;
-                store.save()?;
             } else {
                 eprintln!("The store version is not supported");
                 return Err(StoreError::UnsupportedVersion);
