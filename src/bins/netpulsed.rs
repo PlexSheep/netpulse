@@ -1,3 +1,25 @@
+//! Daemon control binary for starting/stopping the netpulse daemon.
+//!
+//! This binary manages the netpulse daemon process:
+//! - Starting the daemon with proper privileges
+//! - Stopping running daemon instances
+//! - Checking daemon status
+//!
+//! # Usage
+//!
+//! Use the `--help` flag for more information about the usage.
+//!
+//! # Privileges
+//!
+//! The daemon requires root to start but drops privileges to run as the netpulse user.
+//! Note that ICMP checks require `CAP_NET_RAW` capability which is lost on privilege drop.
+//!
+//! # Files
+//!
+//! - PID file: `/var/run/netpulse/netpulsed.pid`
+//! - Info log: `/var/log/netpulse/info.log`
+//! - Error log: `/var/log/netpulse/error.log`
+
 use core::panic;
 use std::fs::{self, File};
 use std::path::PathBuf;

@@ -1,7 +1,34 @@
-//! Make the actual checks
+//! Implementation of network connectivity checks.
 //!
-//! All of these functions perform a check with an [IpAddr] and return a [Result<u16, CheckError>].
-//! The [u16] is the latency in milliseconds.
+//! This module contains the actual check implementations for different protocols:
+//! - HTTP checks via HEAD requests
+//! - ICMP checks via ping
+//! - DNS checks (planned)
+//!
+//! All check functions follow the pattern:
+//! - Take a target IP address
+//! - Perform the check with timeout
+//! - Return latency on success or error on failure
+//!
+//! # Feature Flags
+//!
+//! Check types can be enabled/disabled via feature flags:
+//! - `http` - Enable HTTP checks
+//! - `ping` - Enable ICMP checks
+//!
+//! # Example
+//!
+//! ```rust
+//! use netpulse::checks;
+//! use std::net::IpAddr;
+//!
+//! let addr: IpAddr = "1.1.1.1".parse()?;
+//!
+//! // Perform HTTP check
+//! if let Ok(latency) = checks::check_http(addr) {
+//!     println!("HTTP latency: {}ms", latency);
+//! }
+//! ```
 use std::net::IpAddr;
 
 use crate::errors::CheckError;

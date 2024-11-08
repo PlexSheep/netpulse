@@ -1,3 +1,20 @@
+//! The store module handles persistence and versioning of check results.
+//!
+//! The store is saved to disk at a configurable location (default `/var/lib/netpulse/netpulse.store`).
+//! The store format is versioned to allow for future changes while maintaining backwards compatibility
+//! with older store files.
+//!
+//! # Store Location
+//!
+//! The store location can be configured via:
+//! - Environment variable: `NETPULSE_STORE_PATH` (for debugging)
+//! - Default path: `/var/lib/netpulse/netpulse.store`
+//!
+//! # Versioning
+//!
+//! The store uses a simple version number to track format changes. [Version::CURRENT] is the current version.
+//! When loading a store, the version is checked and migration is performed if needed.
+
 use std::fmt::Display;
 use std::fs;
 use std::hash::{Hash, Hasher};

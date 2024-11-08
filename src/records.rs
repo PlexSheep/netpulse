@@ -1,3 +1,41 @@
+//! Core types for representing network connectivity checks and their results.
+//!
+//! This module defines the fundamental types used throughout netpulse:
+//! - [`Check`] - Result of a single connectivity check
+//! - [`CheckType`] - Different types of checks (HTTP, ICMP, DNS)
+//! - [`CheckFlag`] - Flags indicating check status and metadata
+//!
+//! # Check Types
+//!
+//! The following check types are supported:
+//! - HTTP(S) - Web connectivity checks
+//! - ICMPv4/v6 - Ping checks
+//! - DNS - Domain name resolution (planned)
+//!
+//! # Check Flags
+//!
+//! Checks use a bitflag system to track:
+//! - Success/failure status
+//! - Failure reasons (timeout, unreachable)
+//! - Protocol used (IPv4/IPv6)
+//! - Check type (HTTP, ICMP, DNS)
+//!
+//! This system may be expanded in future versions
+//!
+//! # Example
+//!
+//! ```rust
+//! use netpulse::{CheckType, Check};
+//!
+//! // Create new HTTP check
+//! let check = CheckType::Http.make("1.1.1.1".parse()?);
+//!
+//! // Access check results
+//! if check.is_success() {
+//!     println!("Latency: {}ms", check.latency().unwrap());
+//! }
+//! ```
+
 use std::fmt::Display;
 use std::net::IpAddr;
 use std::time::{self};

@@ -1,3 +1,16 @@
+//! CLI tool for analyzing netpulse check results.
+//!
+//! This binary provides commands to:
+//! - View analysis reports of collected check data
+//! - Run test checks against configured targets
+//! - Display version information
+//!
+//! # Usage
+//!
+//! Without options, displays analysis of stored check results.
+//!
+//! Use the `--help` flag for more information about the usage.
+
 use std::str::FromStr;
 
 use getopts::Options;

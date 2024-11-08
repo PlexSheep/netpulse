@@ -1,3 +1,23 @@
+//! Core daemon process that runs network checks at regular intervals.
+//!
+//! The daemon:
+//! - Loads or creates a [Store](crate::store::Store)
+//! - Runs checks every [period_seconds](crate::store::Store::period_seconds)
+//! - Handles graceful shutdown on SIGTERM
+//! - Maintains PID file at [DAEMON_PID_FILE](crate::DAEMON_PID_FILE)
+//!
+//! # Signal Handling
+//!
+//! The daemon handles the following signals:
+//! - SIGTERM: Graceful shutdown, saves state and removes PID file
+//!
+//! # Cleanup
+//!
+//! On shutdown, the daemon:
+//! 1. Saves the current store state
+//! 2. Removes its PID file
+//! 3. Logs any cleanup errors
+
 use std::sync::atomic::AtomicBool;
 use std::time::{self, Duration, UNIX_EPOCH};
 
@@ -9,6 +29,13 @@ use netpulse::store::Store;
 
 static TERMINATE: AtomicBool = AtomicBool::new(false);
 
+/// Main daemon process function.
+///
+/// This function:
+/// 1. Sets up signal handlers
+/// 2. Loads/creates the store
+/// 3. Enters main check loop
+/// 4. Handles graceful shutdown
 // TODO: better error handling, keep going even if everything goes boom
 pub(crate) fn daemon() {
     signal_hook();
@@ -39,6 +66,16 @@ pub(crate) fn daemon() {
     }
 }
 
+/// Run a check iteration and update store.
+///
+/// Called periodically by the daemon main loop to:
+/// - Run configured checks
+/// - Save results to store
+/// - Handle any check errors
+///
+/// # Errors
+///
+/// Returns [DaemonError] if store operations fail.
 fn wakeup(store: &mut Store) -> Result<(), DaemonError> {
     println!("waking up!");
 
@@ -59,13 +96,21 @@ fn signal_hook() {
     }
 }
 
+/// Clean up daemon resources on shutdown.
+///
+/// Performs:
+/// - Final store save
+/// - PID file removal
+///
+/// # Errors
+///
+/// Returns [DaemonError] if cleanup operations fail.
 fn cleanup(store: &Store) -> Result<(), DaemonError> {
     if let Err(err) = store.save() {
         eprintln!("error while saving to file: {err:#?}");
         return Err(err.into());
     }
 
-    // FIXME: does what I think it should do, but also errors with errno 2 not found
     if let Err(err) = std::fs::remove_file(DAEMON_PID_FILE) {
         if matches!(err.kind(), std::io::ErrorKind::NotFound) {
             // yeah, idk, ignore?

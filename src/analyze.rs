@@ -1,3 +1,34 @@
+//! Module providing analysis and reporting of network check results.
+//!
+//! # Analysis Features
+//!
+//! This module analyzes data from the [Store](crate::store::Store) to provide:
+//! - Outage detection and tracking
+//! - Success/failure statistics per check type
+//! - Latency analysis
+//! - Report generation
+//!
+//! The main entry point is the [analyze] function which generates
+//! a comprehensive report of the store's contents.
+//!
+//! # Examples
+//!
+//! ```rust,no_run
+//! use netpulse::{Store, analyze};
+//!
+//! let store = Store::load()?;
+//! let report = analyze::analyze(&store)?;
+//! println!("{}", report);
+//! ```
+//!
+//! # Report Sections
+//!
+//! The analysis report contains several sections:
+//! - General statistics (total checks, success rates)
+//! - HTTP-specific metrics
+//! - Outage analysis
+//! - Store metadata (hashes, versions)
+
 use crate::errors::AnalysisError;
 use crate::records::{Check, CheckType};
 use crate::store::Store;
@@ -5,6 +36,7 @@ use crate::store::Store;
 use std::fmt::{Display, Write};
 use std::hash::Hash;
 
+/// Represents a period of consecutive failed checks.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Outage<'check> {
     /// Check that started the [Outage]
@@ -51,7 +83,11 @@ impl Display for Outage<'_> {
     }
 }
 
-/// Display a group of [Checks](Check)
+/// Display a formatted list of checks.
+///
+/// # Errors
+///
+/// Returns [AnalysisError] if string formatting fails.
 pub fn display_group(group: &[&Check], f: &mut String) -> Result<(), AnalysisError> {
     if group.is_empty() {
         writeln!(f, "\t<Empty>")?;
@@ -64,7 +100,29 @@ pub fn display_group(group: &[&Check], f: &mut String) -> Result<(), AnalysisErr
     Ok(())
 }
 
-/// Forge a Report about the [Checks](Check) in the given [Store].
+/// Generate a comprehensive analysis report for the given store.
+///
+/// The report includes:
+/// - General check statistics
+/// - HTTP-specific metrics
+/// - Outage analysis
+/// - Store metadata
+///
+/// # Errors
+///
+/// Returns [AnalysisError] if:
+/// - Report string formatting fails
+/// - Store hash calculation fails
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use netpulse::{Store, analyze};
+///
+/// let store = Store::load()?;
+/// let report = analyze::analyze(&store)?;
+/// println!("{}", report);
+/// ```
 pub fn analyze(store: &Store) -> Result<String, AnalysisError> {
     let mut f = String::new();
     barrier(&mut f, "General")?;
@@ -129,6 +187,10 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     Ok(())
 }
 
+/// Find groups of consecutive failed checks.
+///
+/// Returns a vector where each inner vector represents a sequence of consecutive
+/// failed checks. This is used to identify outage periods.
 fn fail_groups<'check>(checks: &[&&'check Check]) -> Vec<Vec<&'check Check>> {
     let failed_idxs: Vec<usize> = checks
         .iter()
@@ -160,6 +222,17 @@ fn fail_groups<'check>(checks: &[&&'check Check]) -> Vec<Vec<&'check Check>> {
     groups
 }
 
+/// Analyze metrics for a specific check type.
+///
+/// Calculates and formats:
+/// - Total check count
+/// - Success/failure counts
+/// - Success ratio
+/// - First/last check timestamps
+///
+/// # Errors
+///
+/// Returns [AnalysisError] if formatting fails.
 fn analyze_check_type_set(
     f: &mut String,
     all: &[&Check],
