@@ -37,11 +37,14 @@
 //! ```
 
 use std::fmt::Display;
+use std::hash::{Hash, Hasher};
 use std::net::IpAddr;
 use std::time::{self};
 
 use flagset::{flags, FlagSet};
 use serde::{Deserialize, Serialize};
+
+use crate::errors::StoreError;
 
 /// List of target IP addresses used for connectivity checks.
 ///
@@ -261,6 +264,16 @@ pub struct Check {
 }
 
 impl Check {
+    /// Generates a hash of the in-memory [Check] data.
+    ///
+    /// Uses [DefaultHasher](std::hash::DefaultHasher) to create a 16-character hexadecimal hash
+    /// of the [Check] that can be used to identify this [Check]. Useful for detecting changes.
+    pub fn get_hash(&self) -> String {
+        let mut hasher = std::hash::DefaultHasher::default();
+        self.hash(&mut hasher);
+        format!("{:016X}", hasher.finish())
+    }
+
     /// Creates a new check result with the specified properties.
     ///
     /// This does not execute a check and then store the information about that check in this
@@ -367,6 +380,61 @@ impl Check {
     /// Updates the target IP address of this check.
     pub fn set_target(&mut self, target: IpAddr) {
         self.target = target;
+    }
+
+    /// Determines whether the check used IPv4 or IPv6.
+    ///
+    /// Examines the check's flags to determine which IP version was used.
+    /// A check should have either IPv4 or IPv6 flag set, but not both.
+    ///
+    /// # Returns
+    ///
+    /// * `CheckFlag::IPv4` - Check used IPv4
+    /// * `CheckFlag::IPv6` - Check used IPv6
+    ///
+    /// # Errors
+    ///
+    /// * Returns [`StoreError::AmbiguousFlags`] if both IPv4 and IPv6 flags are set,
+    ///   as this represents an invalid state that should never occur.
+    ///
+    /// * Returns [`StoreError::MissingFlag`] if neither IPv4 or IPv6 flags are set,
+    ///   as this represents an invalid state that should never occur.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use netpulse::records::{Check, CheckFlag};
+    /// use flagset::FlagSet;
+    ///
+    /// let mut check = Check::new(std::time::SystemTime::now(), FlagSet::default(), None, "1.1.1.1".parse().unwrap());
+    ///
+    /// assert!(check.ip_type().is_err()); // we haven't set the IP flags! We need to set either IPv4 or IPv6
+    ///
+    /// check.add_flag(CheckFlag::IPv4);
+    ///
+    /// match check.ip_type().unwrap() {
+    ///     CheckFlag::IPv4 => println!("IPv4 check"),
+    ///     CheckFlag::IPv6 => println!("IPv6 check"),
+    ///     _ => unreachable!()
+    /// }
+    ///
+    /// check.add_flag(CheckFlag::IPv6); // But what if we now also add IPv6?
+    ///
+    /// assert!(check.ip_type().is_err()); // Oh no! Now it's ambiguos
+    /// ```
+    pub fn ip_type(&self) -> Result<CheckFlag, StoreError> {
+        let flags = self.flags();
+        if flags.contains(CheckFlag::IPv4) && flags.contains(CheckFlag::IPv6) {
+            Err(StoreError::AmbiguousFlags(
+                CheckFlag::IPv4 | CheckFlag::IPv6,
+            ))
+        } else if flags.contains(CheckFlag::IPv4) {
+            Ok(CheckFlag::IPv4)
+        } else if flags.contains(CheckFlag::IPv6) {
+            Ok(CheckFlag::IPv6)
+        } else {
+            Err(StoreError::MissingFlag(CheckFlag::IPv4 | CheckFlag::IPv6))
+        }
     }
 }
 
