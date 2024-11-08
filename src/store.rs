@@ -94,7 +94,7 @@ impl Display for Version {
 
 impl From<u8> for Version {
     fn from(value: u8) -> Self {
-        Self { inner: value }
+        Self::new(value)
     }
 }
 
