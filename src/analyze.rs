@@ -84,6 +84,14 @@ fn barrier(f: &mut String, title: &str) -> Result<(), AnalysisError> {
     Ok(())
 }
 
+fn key_value_write(
+    f: &mut String,
+    title: &str,
+    content: impl Display,
+) -> Result<(), std::fmt::Error> {
+    writeln!(f, "{:<20}: {:<78}", title, content.to_string())
+}
+
 fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     let all_checks: Vec<&Check> = store.checks().iter().collect();
     let mut outages: Vec<Outage> = Vec::new();
@@ -91,7 +99,7 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
         .iter()
         .fold(true, |fails_exist, c| fails_exist & !c.is_success());
     if !fails_exist {
-        writeln!(f, "No outages\n")?;
+        writeln!(f, "None\n")?;
         return Ok(());
     }
 
@@ -152,56 +160,65 @@ fn fail_groups<'check>(checks: &[&&'check Check]) -> Vec<Vec<&'check Check>> {
     groups
 }
 
+fn analyze_check_type_set(
+    f: &mut String,
+    all: &Vec<&Check>,
+    successes: &Vec<&Check>,
+) -> Result<(), AnalysisError> {
+    key_value_write(f, "checks", format!("{:08}", all.len()))?;
+    key_value_write(f, "checks ok", format!("{:08}", successes.len()))?;
+    key_value_write(
+        f,
+        "checks bad",
+        format!("{:08}", all.len() - successes.len()),
+    )?;
+    key_value_write(
+        f,
+        "success ratio",
+        format!(
+            "{:03.02}%",
+            success_ratio(all.len(), successes.len()) * 100.0
+        ),
+    )?;
+    key_value_write(
+        f,
+        "first check at",
+        humantime::format_rfc3339_seconds(all.first().unwrap().timestamp_parsed()),
+    )?;
+    key_value_write(
+        f,
+        "last check at",
+        humantime::format_rfc3339_seconds(all.last().unwrap().timestamp_parsed()),
+    )?;
+    writeln!(f)?;
+    Ok(())
+}
+
 fn generalized(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     if store.checks().is_empty() {
         writeln!(f, "Store has no checks yet\n")?;
         return Ok(());
     }
+    let all: Vec<&Check> = store.checks().iter().collect();
     let successes: Vec<&Check> = store.checks().iter().filter(|c| c.is_success()).collect();
-    writeln!(f, "store contains {:09} checks.", store.checks().len())?;
-    writeln!(
-        f,
-        "store contains {:09} successful checks.",
-        successes.len()
-    )?;
-    writeln!(
-        f,
-        "success ratio: {:02.02}%",
-        success_ratio(store.checks().len(), successes.len()) * 100.0
-    )?;
-    writeln!(f)?;
+    analyze_check_type_set(f, &all, &successes)?;
     Ok(())
 }
 
 fn http(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
-    let checks: Vec<&Check> = store
+    let all: Vec<&Check> = store
         .checks()
         .iter()
         .filter(|c| c.calc_type() == CheckType::Http)
         .collect();
-    let successes: Vec<&Check> = checks
-        .clone()
-        .into_iter()
-        .filter(|c| c.is_success())
-        .collect();
-    writeln!(f, "store contains {:09} HTTP checks.", checks.len())?;
-    writeln!(
-        f,
-        "store contains {:09} successful HTTP checks.",
-        successes.len()
-    )?;
-    writeln!(
-        f,
-        "success ratio: {:02.02}%",
-        success_ratio(checks.len(), successes.len()) * 100.0
-    )?;
-    writeln!(f)?;
+    let successes: Vec<&Check> = store.checks().iter().filter(|c| c.is_success()).collect();
+    analyze_check_type_set(f, &all, &successes)?;
     Ok(())
 }
 
 fn store_meta(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
-    writeln!(f, "Hash of Datastructure: {}", store.display_hash())?;
-    writeln!(f, "Hash of Store File: {}", store.display_hash_of_file()?)?;
+    key_value_write(f, "Hash Datastructure", store.display_hash())?;
+    key_value_write(f, "Hash Store File", store.display_hash_of_file()?)?;
     Ok(())
 }
 
