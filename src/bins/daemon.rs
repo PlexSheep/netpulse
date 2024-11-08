@@ -12,6 +12,10 @@ static TERMINATE: AtomicBool = AtomicBool::new(false);
 // TODO: better error handling, keep going even if everything goes boom
 pub(crate) fn daemon() {
     signal_hook();
+    println!(
+        "Daemon capabilities: {:?}",
+        caps::read(None, caps::CapSet::Effective)
+    );
     println!("starting daemon...");
     let mut store = Store::load_or_create().expect("boom");
     println!("store loaded, entering main loop");

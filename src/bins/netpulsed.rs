@@ -7,7 +7,6 @@ use getopts::Options;
 use netpulse::store::Store;
 use netpulse::{DAEMON_LOG_ERR, DAEMON_LOG_INF, DAEMON_PID_FILE, DAEMON_USER};
 use nix::errno::Errno;
-use nix::libc::ESRCH;
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
 
@@ -19,7 +18,13 @@ fn main() {
     let program = &args[0];
     let mut opts = Options::new();
     opts.optflag("h", "help", "print this help menu");
+    opts.optflag("V", "version", "print the version");
     opts.optflag("s", "start", "start the netpulse daemon");
+    opts.optflag(
+        "d",
+        "daemon",
+        "run directly as the daemon, do not setup a pidfile or drop privileges",
+    );
     opts.optflag("i", "info", "info about the running netpulse daemon");
     opts.optflag("e", "end", "stop the running netpulse daemon");
     let matches = match opts.parse(&args[1..]) {
@@ -31,12 +36,16 @@ fn main() {
 
     if matches.opt_present("help") {
         print_usage(program, opts);
+    } else if matches.opt_present("version") {
+        println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"))
     } else if matches.opt_present("start") {
         startd();
     } else if matches.opt_present("info") {
         infod();
     } else if matches.opt_present("end") {
         endd();
+    } else if matches.opt_present("test") {
+        daemon();
     } else {
         print_usage(program, opts);
     }
@@ -81,6 +90,7 @@ fn pid_runs(pid: i32) -> bool {
 }
 
 fn endd() {
+    root_guard();
     let mut terminated = false;
     let pid: Pid = match getpid() {
         None => {
@@ -102,7 +112,10 @@ fn endd() {
                 Errno::ESRCH => {
                     terminated = true;
                 }
-                _ => panic!("Failed to terminate netpulsed: {e}"),
+                _ => {
+                    eprintln!("Failed to terminate netpulsed: {e}");
+                    std::process::exit(1)
+                }
             }
         }
     }
@@ -139,7 +152,15 @@ fn print_usage(program: &str, opts: Options) {
     print!("{}", opts.usage(&brief));
 }
 
+fn root_guard() {
+    if !nix::unistd::getuid().is_root() {
+        eprintln!("This needs to be run as root");
+        std::process::exit(1)
+    }
+}
+
 fn startd() {
+    root_guard();
     let path = Store::path();
     let parent_path = path.parent().expect("store file has no parent directory");
     println!("Parent: {parent_path:?}");
@@ -166,6 +187,13 @@ fn startd() {
     )
     .expect("could not set permissions for the netpulse run directory");
 
+    // NOTE: Daemonize is the defacto standard way of becoming a daemon in rust (besides extra
+    // tools like systemd or writing it all yourself with nix or just the libc).
+    // Sadly, Daemonize just drops all capabilities when we become a daemon, including an important
+    // one: CAP_NET_RAW. This capability allows us to use raw sockets, which are required for
+    // things like ICMP (ping) messages.
+    // I have implemented ICMP checks, but the daemon drops the CAP_NET_RAW capability and then is
+    // no longer allowed to make the custom pings.
     let daemonize = Daemonize::new()
         .pid_file(pid_path)
         .chown_pid_file(true)

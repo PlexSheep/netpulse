@@ -7,6 +7,7 @@ fn main() {
     let program = &args[0];
     let mut opts = Options::new();
     opts.optflag("h", "help", "print this help menu");
+    opts.optflag("V", "version", "print the version");
     opts.optflag("t", "test", "test run all checks");
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
@@ -17,6 +18,8 @@ fn main() {
 
     if matches.opt_present("help") {
         print_usage(program, opts);
+    } else if matches.opt_present("version") {
+        println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"))
     } else if matches.opt_present("test") {
         test_checks();
     } else {
