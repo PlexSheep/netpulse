@@ -16,10 +16,10 @@
 //! When loading a store, the version is checked and migration is performed if needed.
 
 use std::fmt::Display;
-use std::fs;
+use std::fs::{self, Permissions};
 use std::hash::{Hash, Hasher};
 use std::io::{ErrorKind, Write};
-use std::os::unix::fs::OpenOptionsExt;
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::PathBuf;
 use std::process::Command;
 use std::str::FromStr;
@@ -170,11 +170,12 @@ impl Store {
     /// - Serialization fails
     /// - Write fails
     pub fn create() -> Result<Self, StoreError> {
-        fs::create_dir_all(
-            Self::path()
-                .parent()
-                .expect("the store path has no parent directory"),
-        )?;
+        let path = Self::path();
+        let parent_path = path
+            .parent()
+            .expect("the store path has no parent directory");
+        fs::create_dir_all(parent_path)?;
+        std::fs::set_permissions(parent_path, Permissions::from_mode(0o644))?;
 
         let file = match fs::File::options()
             .read(false)
@@ -182,7 +183,7 @@ impl Store {
             .append(false)
             .create_new(true)
             .mode(0o644)
-            .open(Self::path())
+            .open(path)
         {
             Ok(file) => file,
             Err(err) => return Err(err.into()),
