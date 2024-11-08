@@ -153,13 +153,12 @@ fn fail_groups<'check>(checks: &[&&'check Check]) -> Vec<Vec<&'check Check>> {
 }
 
 fn generalized(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
-    let checks: Vec<&Check> = store.checks().iter().collect();
-    let successes: Vec<&Check> = checks
-        .clone()
-        .into_iter()
-        .filter(|c| c.is_success())
-        .collect();
-    writeln!(f, "store contains {:09} checks.", checks.len())?;
+    if store.checks().is_empty() {
+        writeln!(f, "Store has no checks yet\n")?;
+        return Ok(());
+    }
+    let successes: Vec<&Check> = store.checks().iter().filter(|c| c.is_success()).collect();
+    writeln!(f, "store contains {:09} checks.", store.checks().len())?;
     writeln!(
         f,
         "store contains {:09} successful checks.",
@@ -168,7 +167,7 @@ fn generalized(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     writeln!(
         f,
         "success ratio: {:02.02}%",
-        success_ratio(&checks, &successes) * 100.0
+        success_ratio(store.checks().len(), successes.len()) * 100.0
     )?;
     writeln!(f)?;
     Ok(())
@@ -194,7 +193,7 @@ fn http(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     writeln!(
         f,
         "success ratio: {:02.02}%",
-        success_ratio(&checks, &successes) * 100.0
+        success_ratio(checks.len(), successes.len()) * 100.0
     )?;
     writeln!(f)?;
     Ok(())
@@ -207,6 +206,6 @@ fn store_meta(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
 }
 
 #[inline]
-fn success_ratio(all_checks: &[&Check], subset: &[&Check]) -> f64 {
-    subset.len() as f64 / all_checks.len() as f64
+fn success_ratio(all_checks: usize, subset: usize) -> f64 {
+    subset as f64 / all_checks as f64
 }
