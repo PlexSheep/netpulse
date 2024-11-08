@@ -95,9 +95,13 @@ impl CheckType {
         &[Self::Dns, Self::Http, Self::IcmpV4, Self::IcmpV6]
     }
 
-    /// Get all enabled variants of this enum.
-    pub const fn enabled() -> &'static [Self] {
-        &[Self::IcmpV4, Self::IcmpV6]
+    /// Get all default enabled variants of this enum.
+    ///
+    /// You may want to use more check types, but these are the ones commonly used. The ICMP types
+    /// are removed from this, because they require CAP_NET_ADD, which the daemon does not
+    /// keep when dropping to the user priviledges.
+    pub const fn default_enabled() -> &'static [Self] {
+        &[Self::Http]
     }
 }
 

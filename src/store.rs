@@ -181,7 +181,7 @@ impl Store {
     }
 
     pub fn make_checks(&mut self) {
-        for check_type in CheckType::enabled() {
+        for check_type in CheckType::default_enabled() {
             self.checks.push(check_type.make());
         }
     }

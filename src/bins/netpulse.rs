@@ -33,7 +33,7 @@ fn print_usage(program: &str, opts: Options) {
 }
 
 fn test_checks() {
-    for check_type in CheckType::enabled() {
+    for check_type in CheckType::default_enabled() {
         let check = check_type.make();
         println!("{check}");
     }
