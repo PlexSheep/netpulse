@@ -24,7 +24,10 @@ pub fn check_http(remote: IpAddr) -> Result<u16, CheckError> {
     let start = std::time::Instant::now();
     let mut easy = curl::easy::Easy::new();
 
-    easy.url(&format!("{remote}"))?;
+    easy.url(&match remote {
+        IpAddr::V4(_) => remote.to_string(),
+        IpAddr::V6(_) => format!("[{remote}]"),
+    })?;
     easy.nobody(true)?; // HEAD request only
     easy.perform()?;
 
