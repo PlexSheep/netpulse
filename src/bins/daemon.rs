@@ -40,7 +40,13 @@ static TERMINATE: AtomicBool = AtomicBool::new(false);
 pub(crate) fn daemon() {
     signal_hook();
     println!("starting daemon...");
-    let mut store = Store::load_or_create().expect("boom");
+    let mut store = match Store::load_or_create() {
+        Err(e) => {
+            eprintln!("{e}");
+            std::process::exit(1)
+        }
+        Ok(s) => s,
+    };
     println!("store loaded, entering main loop");
     loop {
         if TERMINATE.load(std::sync::atomic::Ordering::Relaxed) {
