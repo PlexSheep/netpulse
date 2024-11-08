@@ -260,7 +260,13 @@ impl Check {
 
 impl Display for Check {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Type: {}\nOk: {}", self.calc_type(), self.is_success())?;
+        writeln!(
+            f,
+            "Type: {}\nOk: {}\nTarget: {}",
+            self.calc_type(),
+            self.is_success(),
+            self.target
+        )?;
         writeln!(f, "Latency: {}", {
             match self.latency() {
                 Some(l) => format!("{l} ms"),
