@@ -3,7 +3,6 @@ use crate::records::{Check, CheckType};
 use crate::store::Store;
 
 use std::fmt::{Display, Write};
-use std::usize;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Outage<'check> {
@@ -51,6 +50,19 @@ impl Display for Outage<'_> {
     }
 }
 
+/// Display a group of [Checks](Check)
+pub fn display_group(group: &[&Check], f: &mut String) -> Result<(), AnalysisError> {
+    if group.is_empty() {
+        writeln!(f, "\t<Empty>")?;
+        return Ok(());
+    }
+    for (cidx, check) in group.iter().enumerate() {
+        writeln!(f, "{cidx}:")?;
+        writeln!(f, "\t{}", check.to_string().replace("\n", "\n\t"))?;
+    }
+    Ok(())
+}
+
 /// Forge a Report about the [Checks](Check) in the given [Store].
 pub fn analyze(store: &Store) -> Result<String, AnalysisError> {
     let mut f = String::new();
@@ -80,14 +92,14 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
             .collect();
 
         let fail_groups = fail_groups(&checks);
-        for (gidx, group) in fail_groups.iter().enumerate() {
+        for group in fail_groups {
             // writeln!(f, "Group {gidx}:")?;
             // display_group(group, f)?;
             if !group.is_empty() {
                 outages.push(Outage::new(
                     checks.first().unwrap(),
                     Some(checks.last().unwrap()),
-                    group,
+                    &group,
                 ));
             }
         }
@@ -95,18 +107,6 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
 
     for outage in outages {
         writeln!(f, "{outage}")?;
-    }
-    Ok(())
-}
-
-fn display_group(group: &[&Check], f: &mut String) -> Result<(), AnalysisError> {
-    if group.is_empty() {
-        writeln!(f, "\t<Empty>")?;
-        return Ok(());
-    }
-    for (cidx, check) in group.iter().enumerate() {
-        writeln!(f, "{cidx}:")?;
-        writeln!(f, "\t{}", check.to_string().replace("\n", "\n\t"))?;
     }
     Ok(())
 }
