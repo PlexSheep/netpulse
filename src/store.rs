@@ -16,7 +16,7 @@
 //! When loading a store, the version is checked and migration is performed if needed.
 
 use std::fmt::Display;
-use std::fs::{self, Permissions};
+use std::fs::{self};
 use std::hash::{Hash, Hasher};
 use std::io::{ErrorKind, Write};
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
