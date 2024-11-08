@@ -1,77 +1,157 @@
+//! Error types for the netpulse crate.
+//!
+//! This module provides specialized error types for different components of netpulse:
+//! - [`StoreError`] - Errors related to store operations (loading, saving, versioning)
+//! - [`CheckError`] - Errors that occur during network checks (HTTP, ICMP)
+//! - [`DaemonError`] - Errors specific to daemon operations
+//! - [`AnalysisError`] - Errors that occur during analysis and report generation
+//!
+//! All error types implement the standard Error trait and provide detailed error information.
+//!
+//! # Examples
+//!
+//! ```rust,no_run
+//! use netpulse::store::Store;
+//! use netpulse::errors::StoreError;
+//!
+//! fn load_store() -> Result<Store, StoreError> {
+//!     match Store::load() {
+//!         Ok(store) => Ok(store),
+//!         Err(StoreError::DoesNotExist) => Store::create(),
+//!         Err(e) => Err(e),
+//!     }
+//! }
+//! ```
+
 use thiserror::Error;
 
-/// Could not convert from [CheckFlag](crate::records::CheckFlag) to [CheckType](crate::records::CheckType).
-pub struct CheckFlagTypeConversionError;
-
+/// Errors that can occur during store operations.
+///
+/// These errors handle various failure modes when interacting with the store:
+/// - File system operations
+/// - Data serialization/deserialization
+/// - Version compatibility
 #[derive(Error, Debug)]
 pub enum StoreError {
+    /// The store file does not exist.
+    ///
+    /// This typically occurs on first run or if the store file was deleted.
     #[error("The store does not exist")]
     DoesNotExist,
+    /// An I/O error occurred during store operations.
+    ///
+    /// This can happen during file reading, writing, or filesystem operations.
     #[error("IO Error")]
     Io {
+        /// Underlying error
         #[from]
         source: std::io::Error,
     },
+    /// Failed to load store data from file.
+    ///
+    /// This typically indicates corruption or an incompatible / outdated store format.
     #[error("Could not load the store from file: {source}")]
     Load {
+        /// Underlying error
         #[from]
         source: bincode::Error,
     },
+    /// Failed to convert data to UTF-8.
+    ///
+    /// This can occur when reading store metadata like file hashes.
     #[error("Could not convert data to Utf8")]
     Str {
+        /// Underlying error
         #[from]
         source: std::str::Utf8Error,
     },
+    /// A subprocess (like sha256sum) exited with non-zero status.
     #[error("A subprocess ended non successfully")]
     ProcessEndedWithoutSuccess,
+    /// Attempted to load a store with an unsupported version number.
+    ///
+    /// This occurs when the store file version is newer or older than what this version
+    /// of netpulse supports.
     #[error("Tried to load a store with an unsupported version")]
     UnsupportedVersion,
 }
 
+/// Errors that can occur during network checks.
+///
+/// These errors handle failures during the actual network connectivity tests,
+/// whether HTTP, ICMP, or other protocols.
 #[derive(Error, Debug)]
 pub enum CheckError {
+    /// An I/O error occurred during the check.
+    ///
+    /// This typically indicates network-level failures.
     #[error("IO Error")]
     Io {
+        /// Underlying error
         #[from]
         source: std::io::Error,
     },
+    /// An error occurred during ICMP ping.
+    ///
+    /// This variant is only available when the `ping` feature is enabled.
     #[cfg(feature = "ping")]
     #[error("Ping Error")]
     Ping {
+        /// Underlying error
         #[from]
         source: ping::Error,
     },
+    /// An error occurred during HTTP check.
+    ///
+    /// This variant is only available when the `http` feature is enabled.
     #[cfg(feature = "http")]
     #[error("Http Error")]
     Http {
+        /// Underlying error
         #[from]
         source: curl::Error,
     },
 }
 
+/// Errors that can occur during daemon operations.
+///
+/// These errors handle failures in the daemon process, including store
+/// operations and process management.
 #[derive(Error, Debug)]
 pub enum DaemonError {
+    /// An error occurred while operating on the store.
     #[error("Something went wrong with the store")]
     StoreError {
+        /// Underlying error
         #[from]
         source: StoreError,
     },
+    /// An I/O error occurred during daemon operations.
     #[error("IO Error")]
     Io {
+        /// Underlying error
         #[from]
         source: std::io::Error,
     },
 }
 
+/// Errors that can occur during analysis and report generation.
+///
+/// These errors handle failures when analyzing check results and
+/// generating human-readable reports.
 #[derive(Error, Debug)]
 pub enum AnalysisError {
+    /// An error occurred while accessing the store.
     #[error("Something went wrong with the store")]
     StoreError {
+        /// Underlying error
         #[from]
         source: StoreError,
     },
+    /// Failed to format analysis output.
     #[error("Text Formatting error")]
     Fmt {
+        /// Underlying error
         #[from]
         source: std::fmt::Error,
     },
