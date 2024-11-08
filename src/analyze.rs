@@ -37,17 +37,33 @@ use std::fmt::{Display, Write};
 use std::hash::Hash;
 
 /// Represents a period of consecutive failed checks.
+///
+/// An outage is defined by:
+/// - A start check that failed
+/// - An optional end check (None if outage is ongoing)
+/// - All failed checks during the outage period
+///
+/// This struct helps track and analyze network connectivity issues
+/// over time.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Outage<'check> {
-    /// Check that started the [Outage]
+    /// First check that failed, marking the start of the outage
     start: &'check Check,
-    /// Last [Check] the [Outage], after this it works again
+    /// Last failed check before connectivity was restored
+    /// [None] if the outage is still ongoing
     end: Option<&'check Check>,
-    /// All failed [Checks](Check) in this [Outage]
+    /// All checks that failed during this outage period
     all: Vec<&'check Check>,
 }
 
 impl<'check> Outage<'check> {
+    /// Creates a new outage from its constituent checks.
+    ///
+    /// # Arguments
+    ///
+    /// * `start` - The first failed check
+    /// * `end` - Optional last failed check (None if ongoing)
+    /// * `all_checks` - Slice of all failed checks in this period
     pub(crate) fn new(
         start: &'check Check,
         end: Option<&'check Check>,
@@ -84,6 +100,16 @@ impl Display for Outage<'_> {
 }
 
 /// Display a formatted list of checks.
+///
+/// Each check is formatted with:
+/// - Index number
+/// - Indented check details
+/// - Nested line breaks preserved
+///
+/// # Arguments
+///
+/// * `group` - Slice of check references to format
+/// * `f` - String buffer to write formatted output
 ///
 /// # Errors
 ///
@@ -137,11 +163,21 @@ pub fn analyze(store: &Store) -> Result<String, AnalysisError> {
     Ok(f)
 }
 
+/// Adds a section divider to the report with a title.
+///
+/// Creates a divider line of '=' characters with the title centered.
+///
+/// # Errors
+///
+/// Returns [AnalysisError] if string formatting fails.
 fn barrier(f: &mut String, title: &str) -> Result<(), AnalysisError> {
     writeln!(f, "{:=<10}{:=<90}", "", format!(" {title} "))?;
     Ok(())
 }
 
+/// Writes a key-value pair to the report in aligned columns.
+///
+/// Format: `<key>: <value>`
 fn key_value_write(
     f: &mut String,
     title: &str,
@@ -150,6 +186,10 @@ fn key_value_write(
     writeln!(f, "{:<20}: {:<78}", title, content.to_string())
 }
 
+/// Analyzes and formats outage information from the store.
+///
+/// Groups consecutive failed checks by check type and creates
+/// Outage records for reporting.
 fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     let all_checks: Vec<&Check> = store.checks().iter().collect();
     let mut outages: Vec<Outage> = Vec::new();
@@ -189,8 +229,10 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
 
 /// Find groups of consecutive failed checks.
 ///
-/// Returns a vector where each inner vector represents a sequence of consecutive
-/// failed checks. This is used to identify outage periods.
+/// Groups are formed when:
+/// - Checks are consecutive by index
+/// - All checks in group are failures
+/// - Gap between groups is > 1 check
 fn fail_groups<'check>(checks: &[&&'check Check]) -> Vec<Vec<&'check Check>> {
     let failed_idxs: Vec<usize> = checks
         .iter()
@@ -271,6 +313,9 @@ fn analyze_check_type_set(
     Ok(())
 }
 
+/// Write general check statistics section of the report.
+///
+/// Includes metrics across all check types combined.
 fn generalized(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     if store.checks().is_empty() {
         writeln!(f, "Store has no checks yet\n")?;
@@ -282,6 +327,9 @@ fn generalized(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     Ok(())
 }
 
+/// Write HTTP-specific check statistics section of the report.
+///
+/// Filters checks to HTTP type only before calculating metrics.
 fn http(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     let all: Vec<&Check> = store
         .checks()
@@ -293,12 +341,21 @@ fn http(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     Ok(())
 }
 
+/// Write store metadata section of the report.
+///
+/// Includes:
+/// - Hash of in-memory data structure
+/// - Hash of store file on disk
 fn store_meta(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     key_value_write(f, "Hash Datastructure", store.display_hash())?;
     key_value_write(f, "Hash Store File", store.display_hash_of_file()?)?;
+    // TODO: write version of store in file and in memory
     Ok(())
 }
 
+/// Calculate the success ratio of a subset compared to total.
+///
+/// Returns value between 0.0 and 1.0.
 #[inline]
 fn success_ratio(all_checks: usize, subset: usize) -> f64 {
     subset as f64 / all_checks as f64

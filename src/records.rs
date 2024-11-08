@@ -43,14 +43,23 @@ use std::time::{self};
 use flagset::{flags, FlagSet};
 use serde::{Deserialize, Serialize};
 
-// NOTE: ONLY PUT VALID IP ADDRESSES HERE!
-//
-/// IPs which are used in checks
+/// List of target IP addresses used for connectivity checks.
+///
+/// # Warning
+///
+/// Only add valid IP addresses to this list. Invalid addresses will cause panics
+/// when parsed.
 pub const TARGETS: &[&str] = &["1.1.1.1", "2606:4700:4700::1111", "127.0.0.1"];
-/// Which [TARGETS] to use for HTTP Checks
+/// Subset of [TARGETS] used specifically for HTTP checks.
 pub const TARGETS_HTTP: &[&str] = &[TARGETS[0], TARGETS[1]];
 
 flags! {
+    /// Flags describing the status and type of a check.
+    ///
+    /// Uses a bitflag system to efficiently store multiple properties:
+    /// - Result flags (bits 0-7): Success, failure reasons
+    /// - Protocol flags (bits 8-11): IPv4/IPv6
+    /// - Type flags (bits 12-15): Check type (HTTP, ICMP, DNS)
     #[derive(Hash, Deserialize, Serialize)]
     pub enum CheckFlag: u16 {
         /// If this is not set, the check will be considered failed
@@ -67,27 +76,55 @@ flags! {
 
         /// The Check used HTTP/HTTPS
         TypeHTTP    =   0b0001_0000_0000_0000,
-        /// The Check used Ping/ICMP v4/v6
+        /// Check type was ICMP (ping)
         ///
-        /// Depends of the IPv6/IPv4 flags to determine if it's ICMPv4 or ICMPv6
+        /// Must be combined with either [IPv4](CheckFlag::IPv4) or [IPv6](CheckFlag::IPv6)
+        /// to determine the specific ICMP version used
         TypeIcmp    =   0b0100_0000_0000_0000,
         /// The Check used DNS
         TypeDns     =   0b1000_0000_0000_0000,
     }
 }
 
+/// Types of network connectivity checks supported by netpulse.
+///
+/// This enum represents the different kinds of checks that can be performed.
+/// Each variant corresponds to a specific protocol or method of testing connectivity.
 #[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Clone, Copy)]
 pub enum CheckType {
+    /// DNS resolution check (not yet implemented)
     Dns,
+    /// HTTP/HTTPS connectivity check
     Http,
+    /// ICMP ping using IPv4
     IcmpV4,
+    /// ICMP ping using IPv6
     IcmpV6,
+    /// Unknown or invalid check type
     Unknown,
 }
 impl CheckType {
-    /// Make a new [Check] of this type.
+    /// Creates and performs a new network check of this type.
     ///
-    /// This is the actual thing that carries out the checking
+    /// # Arguments
+    ///
+    /// * `remote` - Target IP address to check
+    ///
+    /// # Returns
+    ///
+    /// Returns a [Check] instance containing the results.
+    ///
+    /// # Feature Requirements
+    ///
+    /// - HTTP checks require the `http` feature
+    /// - ICMP checks require the `ping` feature
+    ///
+    /// # Panics
+    ///
+    /// - If HTTP check is attempted without `http` feature
+    /// - If ICMP check is attempted without `ping` feature
+    /// - If check type is `Unknown`
+    /// - If check type is `Dns` (not yet implemented)
     pub fn make(&self, remote: IpAddr) -> Check {
         let mut check = Check::new(
             std::time::SystemTime::now(),
@@ -165,16 +202,18 @@ impl CheckType {
         check
     }
 
-    /// Get all variants of this enum.
+    /// Returns a slice containing all possible check types.
+    ///
+    /// Used for iterating over available check types, e.g., during analysis.
     pub const fn all() -> &'static [Self] {
         &[Self::Dns, Self::Http, Self::IcmpV4, Self::IcmpV6]
     }
 
-    /// Get all default enabled variants of this enum.
+    /// Returns a slice of check types enabled by default.
     ///
-    /// You may want to use more check types, but these are the ones commonly used. The ICMP types
-    /// are removed from this, because they require CAP_NET_ADD, which the daemon does not
-    /// keep when dropping to the user priviledges.
+    /// Currently only includes HTTP checks because ICMP requires special
+    /// privileges (CAP_NET_RAW) which are lost when the daemon drops privileges, and DNS is not
+    /// implemented.
     pub const fn default_enabled() -> &'static [Self] {
         &[Self::Http]
     }
@@ -196,27 +235,47 @@ impl Display for CheckType {
     }
 }
 
-/// Information about connectivity
+/// Result of a single network connectivity check.
+///
+/// Contains all information about a check attempt including:
+/// - When it was performed
+/// - What type of check it was
+/// - Whether it succeeded
+/// - Measured latency (if successful)
+/// - Target address
 #[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Clone, Copy)]
 pub struct Check {
-    /// Unix timestamp (seconds since [UNIX_EPOCH](time::UNIX_EPOCH))
+    /// Unix timestamp when check was performed (seconds since UNIX_EPOCH)
     timestamp: u64,
-    /// Describes how the [Check] went.
+    /// Flags describing check type and result
     ///
-    /// This will be encoded as a [u16], where each bit signifies if a [CheckFlag](CheckFlags) applies to the [Check].
+    /// Stored as a bitset where each bit represents a [CheckFlag]
     flags: FlagSet<CheckFlag>,
-    /// If [CheckFlags::Success], this will be the latency of the connection that was made.
+    /// Round-trip latency in milliseconds if check succeeded
     ///
-    /// This needs to be big enough, that the latency will always be less. Because of that,
-    /// netpulse will only wait for [TIMEOUT_MS](crate::TIMEOUT_MS) milliseconds until deciding
-    /// that a connection has timed out.
+    /// Only present if check succeeded and must be less than
+    /// [TIMEOUT_MS](crate::TIMEOUT_MS)
     latency: Option<u16>,
-    /// Index of the remote, based on [TARGETS]
+    /// Target IP address that was checked
     target: IpAddr,
 }
 
 impl Check {
-    /// Create a new [Check], and fill it with arbitrary data
+    /// Creates a new check result with the specified properties.
+    ///
+    /// This does not execute a check and then store the information about that check in this
+    /// datastructure, it simply allows the creation of arbitrary check results
+    ///
+    /// # Arguments
+    ///
+    /// * `time` - When the check was performed
+    /// * `flags` - Initial status flags
+    /// * `latency` - Measured latency (if successful)
+    /// * `target` - Target IP address
+    ///
+    /// # Panics
+    ///
+    /// Panics if timestamp is before UNIX_EPOCH.
     pub fn new(
         time: time::SystemTime,
         flags: impl Into<FlagSet<CheckFlag>>,
@@ -234,15 +293,19 @@ impl Check {
         }
     }
 
-    /// Checks if this [`Check`] is ok.
+    /// Returns whether this check was successful.
     ///
-    /// Ok means, it's a [Success](CheckFlag::Success), and has no weird anomalies (that this
-    /// checks for).
+    /// A check is considered successful if it has the [Success](CheckFlag::Success) flag
+    /// and no unexpected flag combinations.
     pub fn is_success(&self) -> bool {
         self.flags.contains(CheckFlag::Success)
     }
 
-    /// Returns the latency of this [`Check`].
+    /// Returns the measured latency if check was successful.
+    ///
+    /// Returns None if:
+    /// - Check failed
+    /// - Check succeeded but no latency was recorded
     pub fn latency(&self) -> Option<u16> {
         if !self.is_success() {
             None
@@ -276,7 +339,12 @@ impl Check {
         self.flags |= flag
     }
 
-    /// Check the flags and infer the [CheckType]
+    /// Determines [CheckType] from this checks flags.
+    ///
+    /// Examines the type and protocol flags to determine the specific
+    /// kind of check that was performed.
+    ///
+    /// Returns [CheckType::Unknown] if flags indicate an invalid combination.
     pub fn calc_type(&self) -> CheckType {
         if self.flags.contains(CheckFlag::TypeHTTP) {
             CheckType::Http
@@ -296,6 +364,7 @@ impl Check {
         }
     }
 
+    /// Updates the target IP address of this check.
     pub fn set_target(&mut self, target: IpAddr) {
         self.target = target;
     }

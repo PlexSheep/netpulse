@@ -4,7 +4,7 @@
 //!
 //! The crate is organized into several key modules:
 //! - [`store`] - Handles persistence of check results
-//! - [`records`] - Defines core types for representing checks and their results  
+//! - [`records`] - Defines core types for representing checks and their results
 //! - [`checks`] - Implements the actual connectivity checks
 //! - [`analyze`] - Provides analysis of check results
 //! - [`errors`] - Error types
