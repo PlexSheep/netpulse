@@ -1,7 +1,7 @@
 use std::sync::atomic::AtomicBool;
 use std::time::{self, Duration, UNIX_EPOCH};
 
-use netpulse::errors::StoreError;
+use netpulse::errors::DaemonError;
 use netpulse::DAEMON_PID_FILE;
 use nix::sys::signal::{self, SigHandler, Signal};
 
@@ -39,7 +39,7 @@ pub(crate) fn daemon() {
     }
 }
 
-fn wakeup(store: &mut Store) -> Result<(), StoreError> {
+fn wakeup(store: &mut Store) -> Result<(), DaemonError> {
     println!("waking up!");
 
     store.make_checks();
@@ -59,10 +59,10 @@ fn signal_hook() {
     }
 }
 
-fn cleanup(store: &Store) -> Result<(), StoreError> {
+fn cleanup(store: &Store) -> Result<(), DaemonError> {
     if let Err(err) = store.save() {
         eprintln!("error while saving to file: {err:#?}");
-        return Err(err);
+        return Err(err.into());
     }
 
     // FIXME: does what I think it should do, but also errors with errno 2 not found

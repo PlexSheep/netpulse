@@ -18,3 +18,31 @@ pub enum StoreError {
         source: bincode::Error,
     },
 }
+
+#[derive(Error, Debug)]
+pub enum CheckError {
+    #[error("IO Error")]
+    Io {
+        #[from]
+        source: std::io::Error,
+    },
+    #[error("Ping Error")]
+    Ping {
+        #[from]
+        source: ping::Error,
+    },
+}
+
+#[derive(Error, Debug)]
+pub enum DaemonError {
+    #[error("Something went wrong with the store")]
+    StoreError {
+        #[from]
+        source: StoreError,
+    },
+    #[error("IO Error")]
+    Io {
+        #[from]
+        source: std::io::Error,
+    },
+}
