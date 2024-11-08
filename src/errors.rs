@@ -23,7 +23,10 @@
 //! }
 //! ```
 
+use flagset::FlagSet;
 use thiserror::Error;
+
+use crate::records::CheckFlag;
 
 /// Errors that can occur during store operations.
 ///
@@ -74,6 +77,23 @@ pub enum StoreError {
     /// of netpulse supports.
     #[error("Tried to load a store with an unsupported version")]
     UnsupportedVersion,
+    /// A [Check](crate::records::Check) has flags that are exclusive to each other.
+    ///
+    /// This variant contains a [FlagSet] with only the conflicting [CheckFlags](CheckFlag) set.
+    #[error("Check has ambiguous flags: {0:?}")]
+    AmbiguousFlags(FlagSet<CheckFlag>),
+    /// A [Check](crate::records::Check) that does not have the required flags to be valid.
+    ///
+    /// This variant contains a [FlagSet] with only the flags [CheckFlags](CheckFlag) set that
+    /// would make it a valid state. Exactly one of these flags must be set.
+    ///
+    /// # Example
+    ///
+    /// Every check should have either [CheckFlag::IPv4] or [CheckFlag::IPv6] set. If none of these
+    /// are set, this error will be returned with a [FlagSet] that has both flags set, to indicate
+    /// that one of these should be set.
+    #[error("Check is missing at least one of these flags: {0:?}")]
+    MissingFlag(FlagSet<CheckFlag>),
 }
 
 /// Errors that can occur during network checks.
