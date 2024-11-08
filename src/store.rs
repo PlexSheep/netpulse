@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::io::{ErrorKind, Write};
@@ -36,6 +37,12 @@ pub struct Version {
 pub struct Store {
     version: Version,
     checks: Vec<Check>,
+}
+
+impl Display for Version {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.inner)
+    }
 }
 
 impl From<u8> for Version {
@@ -111,14 +118,30 @@ impl Store {
     pub fn load_or_create() -> Result<Self, StoreError> {
         match Self::load() {
             Ok(store) => Ok(store),
-            Err(err) => {
-                if matches!(err, StoreError::DoesNotExist) {
-                    Self::create()
-                } else {
+            Err(err) => match &err {
+                StoreError::DoesNotExist => Self::create(),
+                StoreError::Load { source } => {
+                    dbg!(source);
+                    eprintln!("{err}");
+
+                    #[allow(clippy::single_match)] // more will certainly come later
+                    match &(**source) {
+                        bincode::ErrorKind::Io(io_err) => match io_err.kind() {
+                            ErrorKind::UnexpectedEof => {
+                                eprintln!("The file ends too early, might be an old format, cut off, or empty. Not doing anything in case you need to keep old data");
+                            }
+                            _ => (),
+                        },
+                        _ => (),
+                    }
+
+                    Err(err)
+                }
+                _ => {
                     eprintln!("Error while trying to load the store: {err:#}");
                     Err(err)
                 }
-            }
+            },
         }
     }
 
@@ -141,7 +164,21 @@ impl Store {
         #[cfg(not(feature = "compression"))]
         let mut reader = file;
 
-        Ok(bincode::deserialize_from(reader)?)
+        let mut store: Store = bincode::deserialize_from(reader)?;
+
+        // TODO: somehow account for old versions that are not compatible with the store struct
+        if store.version != Version::CURRENT {
+            eprintln!("The store that was loaded is not of the current version:\nstore has {} but the current version is {}", store.version, Version::CURRENT);
+            if Version::SUPPROTED.contains(&store.version) {
+                eprintln!("The old store version is still supported, migrating to newer version");
+                store.version = Version::CURRENT;
+                store.save()?;
+            } else {
+                eprintln!("The store version is not supported");
+                return Err(StoreError::UnsupportedVersion);
+            }
+        }
+        Ok(store)
     }
 
     pub fn save(&self) -> Result<(), StoreError> {

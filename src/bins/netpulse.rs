@@ -45,7 +45,13 @@ fn test_checks() {
 }
 
 fn analysis() {
-    let store = Store::load().expect("store file not found");
+    let store = match Store::load() {
+        Err(e) => {
+            eprintln!("The store could not be loaded: {e}");
+            std::process::exit(1)
+        }
+        Ok(s) => s,
+    };
     match analyze::analyze(&store) {
         Err(e) => {
             eprintln!("Error while making the analysis: {e}");

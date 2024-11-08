@@ -12,8 +12,8 @@ pub enum StoreError {
         #[from]
         source: std::io::Error,
     },
-    #[error("Could not Serialize or Deserialize")]
-    DeSerialize {
+    #[error("Could not load the store from file: {source}")]
+    Load {
         #[from]
         source: bincode::Error,
     },
@@ -24,6 +24,8 @@ pub enum StoreError {
     },
     #[error("A subprocess ended non successfully")]
     ProcessEndedWithoutSuccess,
+    #[error("Tried to load a store with an unsupported version")]
+    UnsupportedVersion,
 }
 
 #[derive(Error, Debug)]
