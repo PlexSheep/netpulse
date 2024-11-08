@@ -17,6 +17,13 @@ pub enum StoreError {
         #[from]
         source: bincode::Error,
     },
+    #[error("Could not convert data to Utf8")]
+    Str {
+        #[from]
+        source: std::str::Utf8Error,
+    },
+    #[error("A subprocess ended non successfully")]
+    ProcessEndedWithoutSuccess,
 }
 
 #[derive(Error, Debug)]

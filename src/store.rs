@@ -1,7 +1,9 @@
 use std::fs;
+use std::hash::{Hash, Hasher};
 use std::io::{ErrorKind, Write};
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
+use std::process::Command;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
@@ -180,6 +182,33 @@ impl Store {
     /// Check every _ seconds
     pub const fn period_seconds(&self) -> u64 {
         60
+    }
+
+    /// Hash this database (in memory)
+    pub fn display_hash(&self) -> String {
+        let mut hasher = std::hash::DefaultHasher::default();
+        self.hash(&mut hasher);
+        format!("{:016X}", hasher.finish())
+    }
+
+    /// Hash this database (the store file in the real filesystem)
+    ///
+    /// Uses `sha256sum`
+    pub fn display_hash_of_file(&self) -> Result<String, StoreError> {
+        let out = Command::new("sha256sum").arg(Self::path()).output()?;
+
+        if !out.status.success() {
+            eprintln!(
+                "error while making the hash over the store file:\nStdout\n{:?}\n\nStdin\n{:?}",
+                out.stdout, out.stderr
+            );
+            return Err(StoreError::ProcessEndedWithoutSuccess);
+        }
+
+        Ok(std::str::from_utf8(&out.stdout)?
+            .split(" ")
+            .collect::<Vec<&str>>()[0]
+            .to_string())
     }
 
     pub fn make_checks(&mut self) {

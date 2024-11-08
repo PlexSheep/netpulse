@@ -3,6 +3,7 @@ use crate::records::{Check, CheckType};
 use crate::store::Store;
 
 use std::fmt::{Display, Write};
+use std::hash::Hash;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Outage<'check> {
@@ -72,12 +73,14 @@ pub fn analyze(store: &Store) -> Result<String, AnalysisError> {
     http(store, &mut f)?;
     barrier(&mut f, "Outages")?;
     outages(store, &mut f)?;
+    barrier(&mut f, "Store Metadata")?;
+    store_meta(store, &mut f)?;
 
     Ok(f)
 }
 
 fn barrier(f: &mut String, title: &str) -> Result<(), AnalysisError> {
-    writeln!(f, "{:=<10}{:=<70}", "", format!(" {title} "))?;
+    writeln!(f, "{:=<10}{:=<90}", "", format!(" {title} "))?;
     Ok(())
 }
 
@@ -88,7 +91,7 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
         .iter()
         .fold(true, |fails_exist, c| fails_exist & !c.is_success());
     if !fails_exist {
-        writeln!(f, "No outages")?;
+        writeln!(f, "No outages\n")?;
         return Ok(());
     }
 
@@ -194,6 +197,12 @@ fn http(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
         success_ratio(&checks, &successes) * 100.0
     )?;
     writeln!(f)?;
+    Ok(())
+}
+
+fn store_meta(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
+    writeln!(f, "Hash of Datastructure: {}", store.display_hash())?;
+    writeln!(f, "Hash of Store File: {}", store.display_hash_of_file()?)?;
     Ok(())
 }
 
