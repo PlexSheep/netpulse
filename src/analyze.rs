@@ -98,7 +98,7 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     let fails_exist = all_checks
         .iter()
         .fold(true, |fails_exist, c| fails_exist & !c.is_success());
-    if !fails_exist {
+    if !fails_exist || all_checks.is_empty() {
         writeln!(f, "None\n")?;
         return Ok(());
     }
@@ -162,9 +162,13 @@ fn fail_groups<'check>(checks: &[&&'check Check]) -> Vec<Vec<&'check Check>> {
 
 fn analyze_check_type_set(
     f: &mut String,
-    all: &Vec<&Check>,
-    successes: &Vec<&Check>,
+    all: &[&Check],
+    successes: &[&Check],
 ) -> Result<(), AnalysisError> {
+    if all.is_empty() {
+        writeln!(f, "None\n")?;
+        return Ok(());
+    }
     key_value_write(f, "checks", format!("{:08}", all.len()))?;
     key_value_write(f, "checks ok", format!("{:08}", successes.len()))?;
     key_value_write(
