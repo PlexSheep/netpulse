@@ -41,7 +41,7 @@ pub enum StoreError {
     /// An I/O error occurred during store operations.
     ///
     /// This can happen during file reading, writing, or filesystem operations.
-    #[error("IO Error")]
+    #[error("IO Error: {source}")]
     Io {
         /// Underlying error
         #[from]
@@ -85,7 +85,7 @@ pub enum CheckError {
     /// An I/O error occurred during the check.
     ///
     /// This typically indicates network-level failures.
-    #[error("IO Error")]
+    #[error("IO Error {source}")]
     Io {
         /// Underlying error
         #[from]
@@ -95,7 +95,7 @@ pub enum CheckError {
     ///
     /// This variant is only available when the `ping` feature is enabled.
     #[cfg(feature = "ping")]
-    #[error("Ping Error")]
+    #[error("Ping Error: {source}")]
     Ping {
         /// Underlying error
         #[from]
@@ -105,7 +105,7 @@ pub enum CheckError {
     ///
     /// This variant is only available when the `http` feature is enabled.
     #[cfg(feature = "http")]
-    #[error("Http Error")]
+    #[error("Http Error: {source}")]
     Http {
         /// Underlying error
         #[from]
@@ -120,14 +120,14 @@ pub enum CheckError {
 #[derive(Error, Debug)]
 pub enum DaemonError {
     /// An error occurred while operating on the store.
-    #[error("Something went wrong with the store")]
+    #[error("Something went wrong with the store: {source}")]
     StoreError {
         /// Underlying error
         #[from]
         source: StoreError,
     },
     /// An I/O error occurred during daemon operations.
-    #[error("IO Error")]
+    #[error("IO Error: {source}")]
     Io {
         /// Underlying error
         #[from]
@@ -142,14 +142,14 @@ pub enum DaemonError {
 #[derive(Error, Debug)]
 pub enum AnalysisError {
     /// An error occurred while accessing the store.
-    #[error("Something went wrong with the store")]
+    #[error("Something went wrong with the store: {source}")]
     StoreError {
         /// Underlying error
         #[from]
         source: StoreError,
     },
     /// Failed to format analysis output.
-    #[error("Text Formatting error")]
+    #[error("Text Formatting error: {source}")]
     Fmt {
         /// Underlying error
         #[from]

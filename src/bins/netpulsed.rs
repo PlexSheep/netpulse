@@ -26,6 +26,7 @@ use std::path::PathBuf;
 
 use daemonize::Daemonize;
 use getopts::Options;
+use netpulse::errors::DaemonError;
 use netpulse::store::Store;
 use netpulse::{DAEMON_LOG_ERR, DAEMON_LOG_INF, DAEMON_PID_FILE, DAEMON_USER};
 use nix::errno::Errno;
@@ -47,14 +48,14 @@ fn main() {
         "daemon",
         "run directly as the daemon, do not setup a pidfile or drop privileges",
     );
-    #[cfg(debug_assertions)]
-    opts.optflag("", "fail", "add a failed http check");
     opts.optflag("i", "info", "info about the running netpulse daemon");
     opts.optflag("e", "end", "stop the running netpulse daemon");
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
         Err(f) => {
-            panic!("{}", f.to_string())
+            eprintln!("{f}");
+            print_usage(program, opts);
+            std::process::exit(1)
         }
     };
 
@@ -68,31 +69,11 @@ fn main() {
         infod();
     } else if matches.opt_present("end") {
         endd();
-    } else if matches.opt_present("fail") {
-        #[cfg(debug_assertions)]
-        fail();
     } else if matches.opt_present("test") {
         daemon();
     } else {
         print_usage(program, opts);
     }
-}
-
-#[cfg(debug_assertions)]
-fn fail() {
-    use std::str::FromStr;
-
-    use netpulse::records::{Check, CheckFlag};
-
-    let mut store = Store::load().expect("could not load store");
-    let time = std::time::SystemTime::now();
-    store.add_check(Check::new(
-        time,
-        CheckFlag::IPv4 | CheckFlag::TypeHTTP,
-        None,
-        std::net::IpAddr::from_str("0.0.0.0").unwrap(),
-    ));
-    store.save().expect("could not safe store")
 }
 
 fn getpid() -> Option<i32> {
@@ -246,6 +227,10 @@ fn startd() {
         .group("netpulse")
         .stdout(logfile)
         .stderr(errfile)
+        .privileged_action(|| -> Result<(), DaemonError> {
+            Store::setup()?;
+            Ok(())
+        })
         .umask(0o022); // rw-r--r--
 
     println!("daemon setup done");

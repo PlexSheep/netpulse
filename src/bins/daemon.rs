@@ -40,7 +40,16 @@ static TERMINATE: AtomicBool = AtomicBool::new(false);
 pub(crate) fn daemon() {
     signal_hook();
     println!("starting daemon...");
-    let mut store = Store::load_or_create().expect("boom");
+    let mut store = match Store::load_or_create() {
+        Err(e) => {
+            eprintln!("{e}");
+            if let Err(e) = cleanup_without_store() {
+                eprintln!("error while trying to cleanup: {e}");
+            }
+            std::process::exit(1)
+        }
+        Ok(s) => s,
+    };
     println!("store loaded, entering main loop");
     loop {
         if TERMINATE.load(std::sync::atomic::Ordering::Relaxed) {
@@ -111,6 +120,12 @@ fn cleanup(store: &Store) -> Result<(), DaemonError> {
         return Err(err.into());
     }
 
+    cleanup_without_store()?;
+
+    Ok(())
+}
+
+fn cleanup_without_store() -> Result<(), DaemonError> {
     if let Err(err) = std::fs::remove_file(DAEMON_PID_FILE) {
         if matches!(err.kind(), std::io::ErrorKind::NotFound) {
             // yeah, idk, ignore?
