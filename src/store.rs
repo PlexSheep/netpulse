@@ -177,8 +177,9 @@ impl Store {
         &self.checks
     }
 
-    pub fn period_seconds(&self) -> u64 {
-        5
+    /// Check every _ seconds
+    pub const fn period_seconds(&self) -> u64 {
+        60
     }
 
     pub fn make_checks(&mut self) {
