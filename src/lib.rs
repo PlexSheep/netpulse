@@ -8,7 +8,11 @@ pub const DAEMON_LOG_ERR: &str = "/var/log/netpulse.err";
 pub const DAEMON_LOG_INF: &str = "/var/log/netpulse.log";
 pub const DAEMON_USER: &str = "netpulse";
 
+/// where the actual checks are made
+pub mod checks;
+/// error types
 pub mod errors;
-pub mod ping;
+/// check records that are put in the store, and working with them
 pub mod records;
+/// the store contains all info, is written and loaded to and from the disk
 pub mod store;
