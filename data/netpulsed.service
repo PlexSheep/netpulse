@@ -1,0 +1,25 @@
+[Service]
+Type=simple
+User=netpulse
+Group=netpulse
+ExecStart=/usr/local/bin/netpulsed --daemon
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=30
+WorkingDirectory=/var/lib/netpulse
+
+# Process tracking
+RuntimeDirectory=netpulse
+RuntimeDirectoryMode=0755
+PIDFile=/run/netpulse/netpulse.pid
+
+# Security hardening
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+CapabilityBoundingSet=CAP_NET_RAW
+AmbientCapabilities=CAP_NET_RAW
+
+[Install]
+WantedBy=multi-user.target
