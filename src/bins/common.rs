@@ -1,6 +1,6 @@
 use getopts::Options;
 use netpulse::DAEMON_PID_FILE;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 use tracing_subscriber::FmtSubscriber;
 
 #[allow(dead_code)] // idk why it says thet, netpulsed uses it a few times
