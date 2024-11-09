@@ -22,7 +22,9 @@
 
 use core::panic;
 use std::fs::{self, File};
-use std::path::PathBuf;
+use std::io::Write;
+use std::os::unix::fs::PermissionsExt;
+use std::path::{Path, PathBuf};
 
 use daemonize::Daemonize;
 use getopts::Options;
@@ -36,7 +38,10 @@ use nix::unistd::Pid;
 mod daemon;
 use daemon::daemon;
 
-fn main() {
+pub const SERVICE_FILE: &str = include_str!("../../data/netpulsed.service");
+pub const SYSTEMD_SERVICE_PATH: &str = "/etc/systemd/system/netpulsed.service";
+
+fn main() -> Result<(), DaemonError> {
     let args: Vec<String> = std::env::args().collect();
     let program = &args[0];
     let mut opts = Options::new();
@@ -48,6 +53,7 @@ fn main() {
         "setup",
         "setup the directories and so on needed for netpulse",
     );
+    opts.optflag("", "setup-systemd", "setup a systemd service for netpulsed");
     opts.optflag(
         "d",
         "daemon",
@@ -72,11 +78,10 @@ fn main() {
         startd();
     } else if matches.opt_present("info") {
         infod();
+    } else if matches.opt_present("setup-systemd") {
+        setup_systemd()?;
     } else if matches.opt_present("setup") {
-        if let Err(e) = Store::setup() {
-            eprintln!("{e}");
-            std::process::exit(1)
-        }
+        Store::setup()?;
     } else if matches.opt_present("end") {
         endd();
     } else if matches.opt_present("daemon") {
@@ -84,6 +89,37 @@ fn main() {
     } else {
         print_usage(program, opts);
     }
+    Ok(())
+}
+
+fn setup_systemd() -> Result<(), DaemonError> {
+    root_guard();
+    // Create service file path
+    let service_path = Path::new(SYSTEMD_SERVICE_PATH);
+
+    // Create parent directories if they don't exist
+    if let Some(parent) = service_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    // Write service file
+    let mut file = fs::File::create(service_path)?;
+    file.write_all(SERVICE_FILE.as_bytes())?;
+
+    // Set permissions to 644 (rw-r--r--)
+    let mut perms = file.metadata()?.permissions();
+    perms.set_mode(0o644);
+    fs::set_permissions(service_path, perms)?;
+
+    println!("Created the netpulsed.service in '{SYSTEMD_SERVICE_PATH}'.");
+    println!("To update the reload the daemon definitions, run the following as root:");
+    println!("  systemctl daemon-reload");
+    println!("To enable and start the service, run the following as root:");
+    println!("  systemctl enable netpulse --now");
+    println!("To just start the service once, run the following as root:");
+    println!("  systemctl start netpulse");
+
+    Ok(())
 }
 
 fn getpid() -> Option<i32> {
