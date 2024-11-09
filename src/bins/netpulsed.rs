@@ -20,7 +20,6 @@
 //! - Info log: `/var/log/netpulse/info.log`
 //! - Error log: `/var/log/netpulse/error.log`
 
-use core::panic;
 use std::fs::{self, File};
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
