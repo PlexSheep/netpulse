@@ -49,6 +49,18 @@ daemon:
 useradd -r -s /usr/sbin/nologin netpulse
 ```
 
+To set everything up, including a systemd unit file and copying the `netpulsed`
+executable to `/usr/local/bin/`, do the following:
+
+```bash
+netpulsed --setup
+```
+
+#### Updating
+
+Just run `netpulsed --setup` again, and restart the systemd service with
+`systemctl restart netpulsed.service` if you use that.
+
 ### The Reader
 
 You can use `netpulse --test` to run the checks the daemon would run and see the
@@ -68,5 +80,5 @@ and analyze the store.
 
 The target IPs with which checks are made are defined in the constant `TARGETS` [here](./src/records.rs).
 
-Currently, it boils down to `1.1.1.1` (cloudflare's DNS server), and the 
+Currently, it boils down to `1.1.1.1` (cloudflare's DNS server), and the
 respective IPv6 adress of that.
