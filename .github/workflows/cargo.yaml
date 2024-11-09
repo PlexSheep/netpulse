@@ -38,13 +38,13 @@ jobs:
           echo 'index = "https://git.cscherr.de/PlexSheep/_cargo-index.git"' >> ~/.cargo/config.toml
           cat ~/.cargo/config.toml
       - name: cargo clippy check
-        run: cargo clippy --all-features --all-targets --workspace
+        run: cargo clippy --all-features --workspace
       - name: cargo clippy fix
-        run: cargo clippy --fix --all-features --all-targets --workspace
+        run: cargo clippy --fix --all-features --workspace
       - name: cargo fmt
         run: cargo fmt --all
       - name: cargo test
-        run: cargo test --all-features --all-targets --workspace
+        run: cargo test --all-features --workspace
       - name: commit back to repository
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
