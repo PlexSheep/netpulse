@@ -155,7 +155,7 @@ impl CheckType {
             }
             #[cfg(not(feature = "http"))]
             Self::Http => {
-                compile_error!("Trying to make a http check, but the http feature is not enabled")
+                panic!("Trying to make a http check, but the http feature is not enabled")
             }
 
             #[cfg(feature = "ping")]
@@ -173,7 +173,7 @@ impl CheckType {
             }
             #[cfg(not(feature = "ping"))]
             Self::Icmp => {
-                compile_error!("Trying to make a ICMPv4 check, but the ping feature is not enabled")
+                panic!("Trying to make a ICMPv4 check, but the ping feature is not enabled")
             }
             Self::Unknown => {
                 panic!("tried to make an Unknown check");
