@@ -94,7 +94,11 @@ impl Display for Outage<'_> {
             )?;
         }
         writeln!(f, "Checks: {}", self.all.len())?;
-        writeln!(f, "Type: {}", self.start.calc_type())?;
+        writeln!(
+            f,
+            "Type: {}",
+            self.start.calc_type().unwrap_or(CheckType::Unknown)
+        )?;
         Ok(())
     }
 }
@@ -154,11 +158,15 @@ pub fn analyze(store: &Store) -> Result<String, AnalysisError> {
     barrier(&mut f, "General")?;
     generalized(store, &mut f)?;
     barrier(&mut f, "HTTP")?;
-    http(store, &mut f)?;
+    generic_type_analyze(store, &mut f, CheckType::Http)?;
+    barrier(&mut f, "ICMPv4")?;
+    generic_type_analyze(store, &mut f, CheckType::IcmpV4)?;
+    barrier(&mut f, "ICMPv6")?;
+    generic_type_analyze(store, &mut f, CheckType::IcmpV6)?;
     barrier(&mut f, "IPv4")?;
-    ipv4(store, &mut f)?;
+    gereric_ip_analyze(store, &mut f, CheckFlag::IPv4)?;
     barrier(&mut f, "IPv6")?;
-    ipv6(store, &mut f)?;
+    gereric_ip_analyze(store, &mut f, CheckFlag::IPv6)?;
     barrier(&mut f, "Outages")?;
     outages(store, &mut f)?;
     barrier(&mut f, "Store Metadata")?;
@@ -208,7 +216,7 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     for check_type in CheckType::all() {
         let checks: Vec<&&Check> = all_checks
             .iter()
-            .filter(|c| c.calc_type() == *check_type)
+            .filter(|c| c.calc_type().unwrap_or(CheckType::Unknown) == *check_type)
             .collect();
 
         let fail_groups = fail_groups(&checks);
@@ -331,24 +339,12 @@ fn generalized(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     Ok(())
 }
 
-/// Write HTTP-specific check statistics section of the report.
+/// Write check statistics section of the report for `check_type`.
 ///
-/// Filters checks to HTTP type only before calculating metrics.
-fn http(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
-    let all: Vec<&Check> = store
-        .checks()
-        .iter()
-        .filter(|c| c.calc_type() == CheckType::Http)
-        .collect();
-    let successes: Vec<&Check> = all.clone().into_iter().filter(|c| c.is_success()).collect();
-    analyze_check_type_set(f, &all, &successes)?;
-    Ok(())
-}
-
-/// Analyzes and formats statistics for IPv4 checks.
+/// Analyzes and formats statistics for IPv4/IPv6 checks.
 ///
-/// Collects all checks that used IPv4 and generates a statistical report including:
-/// - Total number of IPv4 checks
+/// Collects all checks that used that IP and generates a statistical report including:
+/// - Total number of that IP checks
 /// - Success/failure counts
 /// - Success ratio
 /// - First/last check timestamps
@@ -366,7 +362,14 @@ fn http(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
 /// Prints warning to stderr if:
 /// - Check has both IPv4 and IPv6 flags set
 /// - Check has no IP version flags set
-fn ipv4(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
+fn gereric_ip_analyze(
+    store: &Store,
+    f: &mut String,
+    ip_check_flag: CheckFlag,
+) -> Result<(), AnalysisError> {
+    if [CheckFlag::IPv4, CheckFlag::IPv6].contains(&ip_check_flag) {
+        panic!("check flag is not IPv4 or IPv6: {ip_check_flag:?}");
+    }
     let all: Vec<&Check> = store
         .checks()
         .iter()
@@ -383,40 +386,16 @@ fn ipv4(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     analyze_check_type_set(f, &all, &successes)?;
     Ok(())
 }
-
-/// Analyzes and formats statistics for IPv6 checks.
-///
-/// Collects all checks that used IPv6 and generates a statistical report including:
-/// - Total number of IPv6 checks
-/// - Success/failure counts
-/// - Success ratio
-/// - First/last check timestamps
-///
-/// Checks with ambiguous or invalid IP flags are excluded and logged as errors.
-///
-/// # Errors
-///
-/// Returns [AnalysisError] if:
-/// - Report formatting fails
-/// - Check type analysis fails
-///
-/// # Warning Messages
-///
-/// Prints warning to stderr if:
-/// - Check has both IPv4 and IPv6 flags set
-/// - Check has no IP version flags set
-fn ipv6(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
+/// Includes metrics across all check types combined.
+fn generic_type_analyze(
+    store: &Store,
+    f: &mut String,
+    check_type: CheckType,
+) -> Result<(), AnalysisError> {
     let all: Vec<&Check> = store
         .checks()
         .iter()
-        .filter(|c| match c.ip_type() {
-            Ok(ip) => ip,
-            Err(err) => {
-                eprintln!("check '{}' has bad flags: {err}", c.get_hash());
-                return false;
-            }
-        } == CheckFlag::IPv6
-        )
+        .filter(|c| c.calc_type().unwrap_or(CheckType::Unknown) == check_type)
         .collect();
     let successes: Vec<&Check> = all.clone().into_iter().filter(|c| c.is_success()).collect();
     analyze_check_type_set(f, &all, &successes)?;

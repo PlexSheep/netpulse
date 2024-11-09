@@ -358,23 +358,20 @@ impl Check {
     /// kind of check that was performed.
     ///
     /// Returns [CheckType::Unknown] if flags indicate an invalid combination.
-    pub fn calc_type(&self) -> CheckType {
-        if self.flags.contains(CheckFlag::TypeHTTP) {
+    pub fn calc_type(&self) -> Result<CheckType, StoreError> {
+        Ok(if self.flags.contains(CheckFlag::TypeHTTP) {
             CheckType::Http
         } else if self.flags.contains(CheckFlag::TypeDns) {
             CheckType::Dns
         } else if self.flags.contains(CheckFlag::TypeIcmp) {
-            if self.flags.contains(CheckFlag::IPv4) {
-                CheckType::IcmpV4
-            } else if self.flags.contains(CheckFlag::IPv6) {
-                CheckType::IcmpV6
-            } else {
-                eprintln!("flag for ICMP is set, but not if ipv4 or ipv6 was used");
-                CheckType::Unknown
+            match self.ip_type()? {
+                CheckFlag::IPv4 => CheckType::IcmpV4,
+                CheckFlag::IPv6 => CheckType::IcmpV6,
+                _ => unreachable!(),
             }
         } else {
             CheckType::Unknown
-        }
+        })
     }
 
     /// Updates the target IP address of this check.
@@ -444,7 +441,7 @@ impl Display for Check {
             f,
             "Time: {}\nType: {}\nOk: {}\nTarget: {}",
             humantime::format_rfc3339_seconds(self.timestamp_parsed()),
-            self.calc_type(),
+            self.calc_type().unwrap_or(CheckType::Unknown),
             self.is_success(),
             self.target
         )?;
