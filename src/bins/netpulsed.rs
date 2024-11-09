@@ -41,10 +41,10 @@ mod common;
 mod daemon;
 use daemon::daemon;
 
-use common::{confirm, init_logging, print_usage, print_version, root_guard};
-use tracing::error;
-
-use self::common::exec_cmd_for_user;
+use common::{
+    confirm, exec_cmd_for_user, getpid, init_logging, netpulsed_is_running, print_usage,
+    print_version, root_guard,
+};
 
 const SERVICE_FILE: &str = include_str!("../../data/netpulsed.service");
 const SYSTEMD_SERVICE_PATH: &str = "/etc/systemd/system/netpulsed.service";
@@ -92,8 +92,9 @@ fn main() -> Result<(), RunError> {
     } else if matches.opt_present("info") {
         infod();
     } else if matches.opt_present("setup") {
-        Store::setup()?;
+        root_guard();
         setup_systemd()?;
+        Store::setup()?;
     } else if matches.opt_present("end") {
         endd();
     } else if matches.opt_present("daemon") {
@@ -106,7 +107,30 @@ fn main() -> Result<(), RunError> {
 }
 
 fn setup_systemd() -> Result<(), RunError> {
-    root_guard();
+    let mut is_running: bool = netpulsed_is_running().is_some();
+    let mut stop_requested = true;
+
+    while is_running {
+        if !stop_requested && is_running {
+            println!("netpulsed.service needs to be stopped if it's running.");
+            println!(
+                "To stop the running netpulsed.service (using systemd), run the following as root:"
+            );
+            println!("  systemctl stop netpulsed.service");
+            if !confirm("Do this automatically now?") {
+                return Ok(());
+            }
+            exec_cmd_for_user(Command::new("systemctl").arg("stop netpulsed.service"));
+            stop_requested = true;
+            println!(
+                "waiting until netpulsed is no longer running (pid: {:?})",
+                getpid()
+            );
+        }
+        is_running = netpulsed_is_running().is_some();
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+
     // Create service file path
     let service_path = Path::new(SYSTEMD_SERVICE_PATH);
 
@@ -131,8 +155,6 @@ fn setup_systemd() -> Result<(), RunError> {
     )?;
 
     println!("Created the netpulsed.service in '{SYSTEMD_SERVICE_PATH}'.");
-    println!("To stop the running netpulsed.service, run the following as root:");
-    println!("  systemctl stop netpulsed.service");
     println!("To update the reload the daemon definitions, run the following as root:");
     println!("  systemctl daemon-reload");
     println!("To enable and start the service, run the following as root:");
@@ -140,15 +162,8 @@ fn setup_systemd() -> Result<(), RunError> {
     println!("To just start the service once, run the following as root:");
     println!("  systemctl start netpulsed.service --now");
     println!();
-    if !confirm("Do this automatically now?") {
+    if !confirm("Reload, enable and start netpulsed.service now?") {
         return Ok(());
-    }
-
-    let out = Command::new("systemctl").arg("daemon-reload").output()?;
-    if !out.status.success() {
-        let info = String::from_utf8_lossy(&out.stdout);
-        let err = String::from_utf8_lossy(&out.stderr);
-        error!("could not reload the daemons:\nSTDERR:\n{err}\nSTDIN:\n{info}");
     }
 
     exec_cmd_for_user(Command::new("systemctl").arg("stop netpulsed.service"));
@@ -157,25 +172,6 @@ fn setup_systemd() -> Result<(), RunError> {
     exec_cmd_for_user(Command::new("systemctl").arg("restart netpulsed.service"));
 
     Ok(())
-}
-
-fn getpid() -> Option<i32> {
-    if !fs::exists(DAEMON_PID_FILE).expect("couldn't check if the pid file exists") {
-        None
-    } else {
-        let pid_raw = fs::read_to_string(DAEMON_PID_FILE)
-            .expect("pid file does not exist")
-            .trim()
-            .to_string();
-        let pid = match pid_raw.parse() {
-            Ok(pid) => pid,
-            Err(err) => {
-                eprintln!("Error while parsing the pid from file ('{pid_raw}'): {err}");
-                return None;
-            }
-        };
-        Some(pid)
-    }
 }
 
 fn infod() {

@@ -1,4 +1,5 @@
 use getopts::Options;
+use netpulse::DAEMON_PID_FILE;
 use tracing::error;
 use tracing_subscriber::FmtSubscriber;
 
@@ -93,5 +94,37 @@ pub(crate) fn exec_cmd_for_user(cmd: &mut Command) {
         let err = String::from_utf8_lossy(&out.stderr);
         error!("command failed: {cmd:?}\nSTDERR:\n{err}\nSTDIN:\n{info}");
         std::process::exit(1)
+    }
+}
+
+/// Return the PID of netpulsed if it runs
+#[allow(dead_code)] // idk why it says thet, netpulsed uses it a few times
+pub(crate) fn netpulsed_is_running() -> Option<i32> {
+    getpid().filter(|p| pid_runs(*p))
+}
+
+/// Check if a process with `pid` exists
+pub(crate) fn pid_runs(pid: i32) -> bool {
+    std::fs::exists(format!("/proc/{pid}")).expect("could not check if the process exists")
+}
+
+/// Ger the netpulsed pid from the pidfile
+#[allow(dead_code)] // idk why it says thet, netpulsed uses it a few times
+pub(crate) fn getpid() -> Option<i32> {
+    if !std::fs::exists(DAEMON_PID_FILE).expect("couldn't check if the pid file exists") {
+        None
+    } else {
+        let pid_raw = std::fs::read_to_string(DAEMON_PID_FILE)
+            .expect("pid file does not exist")
+            .trim()
+            .to_string();
+        let pid = match pid_raw.parse() {
+            Ok(pid) => pid,
+            Err(err) => {
+                eprintln!("Error while parsing the pid from file ('{pid_raw}'): {err}");
+                return None;
+            }
+        };
+        Some(pid)
     }
 }
