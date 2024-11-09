@@ -22,7 +22,7 @@ use std::sync::atomic::AtomicBool;
 use std::time::{self, Duration, UNIX_EPOCH};
 
 use netpulse::analyze::display_group;
-use netpulse::errors::DaemonError;
+use netpulse::errors::RunError;
 use netpulse::DAEMON_PID_FILE;
 use nix::sys::signal::{self, SigHandler, Signal};
 
@@ -88,7 +88,7 @@ pub(crate) fn daemon() {
 /// # Errors
 ///
 /// Returns [DaemonError] if store operations fail.
-fn wakeup(store: &mut Store) -> Result<(), DaemonError> {
+fn wakeup(store: &mut Store) -> Result<(), RunError> {
     println!("waking up!");
 
     let mut buf = String::new();
@@ -119,7 +119,7 @@ fn signal_hook() {
 /// # Errors
 ///
 /// Returns [DaemonError] if cleanup operations fail.
-fn cleanup(store: &Store) -> Result<(), DaemonError> {
+fn cleanup(store: &Store) -> Result<(), RunError> {
     if let Err(err) = store.save() {
         eprintln!("error while saving to file: {err:#?}");
         return Err(err.into());
@@ -130,7 +130,7 @@ fn cleanup(store: &Store) -> Result<(), DaemonError> {
     Ok(())
 }
 
-fn cleanup_without_store() -> Result<(), DaemonError> {
+fn cleanup_without_store() -> Result<(), RunError> {
     // stuff we only need to do if it's a manual daemon
     if USES_DAEMON_SYSTEM.load(std::sync::atomic::Ordering::Relaxed) {
         if let Err(err) = std::fs::remove_file(DAEMON_PID_FILE) {

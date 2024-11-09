@@ -29,7 +29,7 @@ use std::sync::atomic::AtomicBool;
 
 use daemonize::Daemonize;
 use getopts::Options;
-use netpulse::errors::DaemonError;
+use netpulse::errors::RunError;
 use netpulse::store::Store;
 use netpulse::{DAEMON_LOG_ERR, DAEMON_LOG_INF, DAEMON_PID_FILE, DAEMON_USER};
 use nix::errno::Errno;
@@ -48,7 +48,7 @@ const SYSTEMD_SERVICE_PATH: &str = "/etc/systemd/system/netpulsed.service";
 /// `false` => no, we're doing it all manually
 static USES_DAEMON_SYSTEM: AtomicBool = AtomicBool::new(false);
 
-fn main() -> Result<(), DaemonError> {
+fn main() -> Result<(), RunError> {
     let args: Vec<String> = std::env::args().collect();
     let program = &args[0];
     let mut opts = Options::new();
@@ -98,7 +98,7 @@ fn main() -> Result<(), DaemonError> {
     Ok(())
 }
 
-fn setup_systemd() -> Result<(), DaemonError> {
+fn setup_systemd() -> Result<(), RunError> {
     root_guard();
     // Create service file path
     let service_path = Path::new(SYSTEMD_SERVICE_PATH);
@@ -285,7 +285,7 @@ fn startd() {
         .group("netpulse")
         .stdout(logfile)
         .stderr(errfile)
-        .privileged_action(|| -> Result<(), DaemonError> {
+        .privileged_action(|| -> Result<(), RunError> {
             Store::setup()?;
             Ok(())
         })

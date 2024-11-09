@@ -138,7 +138,7 @@ pub enum CheckError {
 /// These errors handle failures in the daemon process, including store
 /// operations and process management.
 #[derive(Error, Debug)]
-pub enum DaemonError {
+pub enum RunError {
     /// An error occurred while operating on the store.
     #[error("Something went wrong with the store: {source}")]
     StoreError {
