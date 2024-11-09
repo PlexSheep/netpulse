@@ -45,7 +45,7 @@ use common::{
     confirm, exec_cmd_for_user, getpid, init_logging, netpulsed_is_running, print_usage,
     print_version, root_guard,
 };
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 const SERVICE_FILE: &str = include_str!("../../data/netpulsed.service");
 const SYSTEMD_SERVICE_PATH: &str = "/etc/systemd/system/netpulsed.service";
@@ -115,7 +115,7 @@ fn main() -> Result<(), RunError> {
 
 fn setup_systemd() -> Result<(), RunError> {
     let mut is_running: bool = netpulsed_is_running().is_some();
-    debug!("netpulsed is running: {is_running}");
+    info!("netpulsed is running: {is_running}");
     let mut stop_requested = false;
 
     while is_running {
@@ -145,17 +145,17 @@ fn setup_systemd() -> Result<(), RunError> {
 
     // Create parent directories if they don't exist
     if let Some(parent) = service_path.parent() {
-        debug!("creating parent dir of systemd service {parent:?}");
+        info!("creating parent dir of systemd service {parent:?}");
         fs::create_dir_all(parent)?;
     }
 
     // Write service file
-    debug!("creating the systemd service");
+    info!("creating the systemd service");
     let mut file = fs::File::create(service_path)?;
     file.write_all(SERVICE_FILE.as_bytes())?;
 
     // Set permissions to 644 (rw-r--r--)
-    debug!("setting permissions for the systemd service");
+    info!("setting permissions for the systemd service");
     let mut perms = file.metadata()?.permissions();
     perms.set_mode(0o644);
     fs::set_permissions(service_path, perms)?;
@@ -163,7 +163,7 @@ fn setup_systemd() -> Result<(), RunError> {
     // copying netpulsed to /usr/local/bin/
     let current_exe = std::env::current_exe()?;
     let target_path = format!("/usr/local/bin/{}", env!("CARGO_BIN_NAME"));
-    debug!(
+    info!(
         "copying the netpulsed executable from '{:?}' to '{target_path}'",
         current_exe
     );
