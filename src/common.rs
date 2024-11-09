@@ -29,7 +29,7 @@
 //! common::init_logging(tracing::Level::INFO);
 //!
 //! // Check if daemon is running
-//! if let Some(pid) = common::netpulsed_is_running() {
+//! if let Some(pid) = common::getpid_running() {
 //!     println!("Daemon running with PID: {}", pid);
 //! }
 //! ```
@@ -134,6 +134,7 @@ pub fn init_logging(level: tracing::Level) {
 ///
 /// # Examples
 /// ```
+/// use netpulse::common::confirm;
 /// if confirm("Delete all files") {
 ///     println!("Deleting...");
 /// } else {
@@ -179,6 +180,7 @@ pub fn confirm(message: &str) -> bool {
 /// # Examples
 ///
 /// ```rust,no_run
+/// use std::process::Command;
 /// use netpulse::common::exec_cmd_for_user;
 /// exec_cmd_for_user(Command::new("systemctl").arg("daemon-reload"));
 /// ```
