@@ -11,12 +11,10 @@
 //!
 //! Use the `--help` flag for more information about the usage.
 
-use std::str::FromStr;
-
 use getopts::Options;
 use netpulse::analyze::{self, display_group};
-use netpulse::errors::{RunError, StoreError};
-use netpulse::records::{Check, CheckType, TARGETS};
+use netpulse::errors::RunError;
+use netpulse::records::Check;
 use netpulse::store::Store;
 
 fn main() {
