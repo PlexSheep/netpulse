@@ -43,6 +43,8 @@ pub const DAEMON_USER: &str = "netpulse";
 
 pub mod analyze;
 pub mod checks;
+#[cfg(feature = "executable")]
+pub mod common;
 pub mod errors;
 pub mod records;
 pub mod store;
