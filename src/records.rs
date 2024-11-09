@@ -172,7 +172,7 @@ impl CheckType {
                 }
             }
             #[cfg(not(feature = "ping"))]
-            Self::IcmpV4 => {
+            Self::Icmp => {
                 compile_error!("Trying to make a ICMPv4 check, but the ping feature is not enabled")
             }
             Self::Unknown => {
