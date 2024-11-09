@@ -367,7 +367,7 @@ fn gereric_ip_analyze(
     f: &mut String,
     ip_check_flag: CheckFlag,
 ) -> Result<(), AnalysisError> {
-    if [CheckFlag::IPv4, CheckFlag::IPv6].contains(&ip_check_flag) {
+    if ![CheckFlag::IPv4, CheckFlag::IPv6].contains(&ip_check_flag) {
         panic!("check flag is not IPv4 or IPv6: {ip_check_flag:?}");
     }
     let all: Vec<&Check> = store
