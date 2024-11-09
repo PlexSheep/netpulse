@@ -45,7 +45,7 @@ use common::{
     confirm, exec_cmd_for_user, getpid, init_logging, netpulsed_is_running, print_usage,
     print_version, root_guard,
 };
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 const SERVICE_FILE: &str = include_str!("../../data/netpulsed.service");
 const SYSTEMD_SERVICE_PATH: &str = "/etc/systemd/system/netpulsed.service";
