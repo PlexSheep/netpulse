@@ -410,7 +410,9 @@ fn generic_type_analyze(
 fn store_meta(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     key_value_write(f, "Hash Datastructure", store.display_hash())?;
     key_value_write(f, "Hash Store File", store.display_hash_of_file()?)?;
-    // TODO: write version of store in file and in memory
+    key_value_write(f, "Store Version (mem)", store.version())?;
+    // TODO: find a way to get the version just from file without deserializing it
+    key_value_write(f, "Store Version (file)", "<TODO>")?;
     Ok(())
 }
 

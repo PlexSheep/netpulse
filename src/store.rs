@@ -68,7 +68,7 @@ pub const ENV_PATH: &str = "NETPULSE_STORE_PATH";
 /// supported by this version of Netpulse
 ///
 /// This only describes the version of the [Store], not of [Netpulse](crate) itself.
-#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Copy, Clone)]
 pub struct Version {
     /// Raw version number as u8
     inner: u8,
@@ -509,6 +509,11 @@ impl Store {
                 buf.push(check);
             }
         }
+    }
+
+    /// Returns the version of this [`Store`].
+    pub fn version(&self) -> Version {
+        self.version
     }
 }
 
