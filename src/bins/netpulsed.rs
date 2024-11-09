@@ -132,6 +132,8 @@ fn setup_systemd() -> Result<(), RunError> {
     )?;
 
     println!("Created the netpulsed.service in '{SYSTEMD_SERVICE_PATH}'.");
+    println!("To stop the running netpulsed.service, run the following as root:");
+    println!("  systemctl stop netpulsed.service");
     println!("To update the reload the daemon definitions, run the following as root:");
     println!("  systemctl daemon-reload");
     println!("To enable and start the service, run the following as root:");
@@ -150,6 +152,7 @@ fn setup_systemd() -> Result<(), RunError> {
         error!("could not reload the daemons:\nSTDERR:\n{err}\nSTDIN:\n{info}");
     }
 
+    exec_cmd_for_user(Command::new("systemctl").arg("stop netpulsed.service"));
     exec_cmd_for_user(Command::new("systemctl").arg("daemon-reload"));
     exec_cmd_for_user(Command::new("systemctl").arg("enable netpulsed.service"));
     exec_cmd_for_user(Command::new("systemctl").arg("restart netpulsed.service"));
