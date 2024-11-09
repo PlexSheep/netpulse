@@ -115,7 +115,7 @@ fn main() -> Result<(), RunError> {
 
 fn setup_systemd() -> Result<(), RunError> {
     let mut is_running: bool = netpulsed_is_running().is_some();
-    let mut stop_requested = true;
+    let mut stop_requested = false;
 
     while is_running {
         if !stop_requested && is_running {
