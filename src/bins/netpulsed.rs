@@ -45,6 +45,7 @@ use common::{
     confirm, exec_cmd_for_user, getpid, init_logging, netpulsed_is_running, print_usage,
     print_version, root_guard,
 };
+use tracing::error;
 
 const SERVICE_FILE: &str = include_str!("../../data/netpulsed.service");
 const SYSTEMD_SERVICE_PATH: &str = "/etc/systemd/system/netpulsed.service";
@@ -93,8 +94,14 @@ fn main() -> Result<(), RunError> {
         infod();
     } else if matches.opt_present("setup") {
         root_guard();
-        setup_systemd()?;
-        Store::setup()?;
+        if let Err(e) = setup_systemd() {
+            error!("While making the systemd setup: {e}");
+            std::process::exit(1)
+        }
+        if let Err(e) = Store::setup() {
+            error!("While making the store setup: {e}");
+            std::process::exit(1)
+        }
     } else if matches.opt_present("end") {
         endd();
     } else if matches.opt_present("daemon") {
