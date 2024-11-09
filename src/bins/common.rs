@@ -1,6 +1,6 @@
 use getopts::Options;
 use netpulse::DAEMON_PID_FILE;
-use tracing::error;
+use tracing::{debug, error};
 use tracing_subscriber::FmtSubscriber;
 
 #[allow(dead_code)] // idk why it says thet, netpulsed uses it a few times
@@ -82,6 +82,7 @@ pub(crate) fn confirm(message: &str) -> bool {
 
 #[allow(dead_code)] // idk why it says thet, netpulsed uses it a few times
 pub(crate) fn exec_cmd_for_user(cmd: &mut Command) {
+    debug!("running cmd: {cmd:?}");
     let out = match cmd.output() {
         Err(e) => {
             error!("{e}");
