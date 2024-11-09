@@ -58,9 +58,8 @@ fn main() -> Result<(), DaemonError> {
     opts.optflag(
         "u",
         "setup",
-        "setup the directories and so on needed for netpulse",
+        "setup the directories and so on needed for netpulse, including a systemd service (netpulsed.service)",
     );
-    opts.optflag("", "setup-systemd", "setup a systemd service for netpulsed");
     opts.optflag(
         "d",
         "daemon",
@@ -85,10 +84,9 @@ fn main() -> Result<(), DaemonError> {
         startd();
     } else if matches.opt_present("info") {
         infod();
-    } else if matches.opt_present("setup-systemd") {
-        setup_systemd()?;
     } else if matches.opt_present("setup") {
         Store::setup()?;
+        setup_systemd()?;
     } else if matches.opt_present("end") {
         endd();
     } else if matches.opt_present("daemon") {
