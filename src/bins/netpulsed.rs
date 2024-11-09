@@ -25,6 +25,7 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
 
 use daemonize::Daemonize;
 use getopts::Options;
@@ -40,6 +41,12 @@ use daemon::daemon;
 
 pub const SERVICE_FILE: &str = include_str!("../../data/netpulsed.service");
 pub const SYSTEMD_SERVICE_PATH: &str = "/etc/systemd/system/netpulsed.service";
+
+/// Whether the executable is being executed as a daemon by a framework like systemd
+///
+/// `true` => yes, something like systemd is taking care of things like stdout and pidfile
+/// `false` => no, we're doing it all manually
+static USES_DAEMON_SYSTEM: AtomicBool = AtomicBool::new(false);
 
 fn main() -> Result<(), DaemonError> {
     let args: Vec<String> = std::env::args().collect();
@@ -85,6 +92,7 @@ fn main() -> Result<(), DaemonError> {
     } else if matches.opt_present("end") {
         endd();
     } else if matches.opt_present("daemon") {
+        USES_DAEMON_SYSTEM.store(true, std::sync::atomic::Ordering::Release);
         daemon();
     } else {
         print_usage(program, opts);

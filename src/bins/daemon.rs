@@ -27,6 +27,8 @@ use nix::sys::signal::{self, SigHandler, Signal};
 
 use netpulse::store::Store;
 
+use crate::USES_DAEMON_SYSTEM;
+
 static TERMINATE: AtomicBool = AtomicBool::new(false);
 
 /// Main daemon process function.
@@ -126,12 +128,15 @@ fn cleanup(store: &Store) -> Result<(), DaemonError> {
 }
 
 fn cleanup_without_store() -> Result<(), DaemonError> {
-    if let Err(err) = std::fs::remove_file(DAEMON_PID_FILE) {
-        if matches!(err.kind(), std::io::ErrorKind::NotFound) {
-            // yeah, idk, ignore?
-        } else {
-            eprintln!("Failed to remove PID file: {}", err);
-            return Err(err.into());
+    // stuff we only need to do if it's a manual daemon
+    if USES_DAEMON_SYSTEM.load(std::sync::atomic::Ordering::Relaxed) {
+        if let Err(err) = std::fs::remove_file(DAEMON_PID_FILE) {
+            if matches!(err.kind(), std::io::ErrorKind::NotFound) {
+                // yeah, idk, ignore?
+            } else {
+                eprintln!("Failed to remove PID file: {}", err);
+                return Err(err.into());
+            }
         }
     }
 
