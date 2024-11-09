@@ -39,8 +39,8 @@ use nix::unistd::Pid;
 mod daemon;
 use daemon::daemon;
 
-pub const SERVICE_FILE: &str = include_str!("../../data/netpulsed.service");
-pub const SYSTEMD_SERVICE_PATH: &str = "/etc/systemd/system/netpulsed.service";
+const SERVICE_FILE: &str = include_str!("../../data/netpulsed.service");
+const SYSTEMD_SERVICE_PATH: &str = "/etc/systemd/system/netpulsed.service";
 
 /// Whether the executable is being executed as a daemon by a framework like systemd
 ///
@@ -116,6 +116,9 @@ fn setup_systemd() -> Result<(), DaemonError> {
     let mut perms = file.metadata()?.permissions();
     perms.set_mode(0o644);
     fs::set_permissions(service_path, perms)?;
+
+    // copying netpulsed to /usr/local/bin/
+    fs::copy(std::env::current_exe()?, "/usr/local/bin/")?;
 
     println!("Created the netpulsed.service in '{SYSTEMD_SERVICE_PATH}'.");
     println!("To update the reload the daemon definitions, run the following as root:");
