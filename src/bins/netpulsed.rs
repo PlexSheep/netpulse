@@ -42,11 +42,16 @@ fn main() {
     let mut opts = Options::new();
     opts.optflag("h", "help", "print this help menu");
     opts.optflag("V", "version", "print the version");
-    opts.optflag("s", "start", "start the netpulse daemon");
+    opts.optflag("s", "start", "start the netpulse daemon manually");
+    opts.optflag(
+        "u",
+        "setup",
+        "setup the directories and so on needed for netpulse",
+    );
     opts.optflag(
         "d",
         "daemon",
-        "run directly as the daemon, do not setup a pidfile or drop privileges",
+        "run directly as the daemon, do not setup a pidfile or drop privileges, for use when using a daemonizing system like systemd",
     );
     opts.optflag("i", "info", "info about the running netpulse daemon");
     opts.optflag("e", "end", "stop the running netpulse daemon");
@@ -67,9 +72,14 @@ fn main() {
         startd();
     } else if matches.opt_present("info") {
         infod();
+    } else if matches.opt_present("setup") {
+        if let Err(e) = Store::setup() {
+            eprintln!("{e}");
+            std::process::exit(1)
+        }
     } else if matches.opt_present("end") {
         endd();
-    } else if matches.opt_present("test") {
+    } else if matches.opt_present("daemon") {
         daemon();
     } else {
         print_usage(program, opts);
