@@ -24,6 +24,7 @@ fn main() {
     opts.optflag("h", "help", "print this help menu");
     opts.optflag("V", "version", "print the version");
     opts.optflag("t", "test", "test run all checks");
+    opts.optflag("d", "dump", "print out all checks");
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
         Err(f) => {
@@ -37,8 +38,13 @@ fn main() {
         print_usage(program, opts);
     } else if matches.opt_present("version") {
         println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"))
+    } else if matches.opt_present("dump") {
+        dump();
     } else if matches.opt_present("test") {
-        test_checks();
+        if let Err(e) = test_checks() {
+            eprintln!("{e}");
+            std::process::exit(1)
+        }
     } else {
         analysis();
     }
@@ -59,14 +65,29 @@ fn test_checks() -> Result<(), RunError> {
     Ok(())
 }
 
-fn analysis() {
-    let store = match Store::load() {
+fn store_load() -> Store {
+    match Store::load() {
         Err(e) => {
             eprintln!("The store could not be loaded: {e}");
             std::process::exit(1)
         }
         Ok(s) => s,
-    };
+    }
+}
+
+fn dump() {
+    let store = store_load();
+    let mut buf = String::new();
+    let ref_checks: Vec<&Check> = store.checks().iter().collect();
+    if let Err(e) = display_group(&ref_checks, &mut buf) {
+        eprintln!("{e}");
+        std::process::exit(1);
+    }
+    println!("{buf}")
+}
+
+fn analysis() {
+    let store = store_load();
     match analyze::analyze(&store) {
         Err(e) => {
             eprintln!("Error while making the analysis: {e}");
