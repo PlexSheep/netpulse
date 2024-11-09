@@ -19,7 +19,7 @@ use std::fmt::Display;
 use std::fs::{self};
 use std::hash::{Hash, Hasher};
 use std::io::{ErrorKind, Write};
-use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
 use std::process::Command;
 use std::str::FromStr;
