@@ -70,7 +70,7 @@ use crate::TIMEOUT;
 /// use std::net::IpAddr;
 /// use netpulse::checks::just_fucking_ping;
 ///
-/// let addr: IpAddr = "1.1.1.1".parse()?;
+/// let addr: IpAddr = "1.1.1.1".parse().unwrap();
 /// match just_fucking_ping(addr) {
 ///     Ok(latency) => println!("Ping latency: {}ms", latency),
 ///     Err(e) => eprintln!("Ping failed: {}", e),
