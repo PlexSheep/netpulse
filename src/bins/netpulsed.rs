@@ -24,7 +24,9 @@ use core::panic;
 use std::fs::{self, File};
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
+use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
+use std::process::{Command, ExitStatus};
 use std::sync::atomic::AtomicBool;
 
 use daemonize::Daemonize;
@@ -40,7 +42,10 @@ mod common;
 mod daemon;
 use daemon::daemon;
 
-use common::{init_logging, print_usage, print_version, root_guard};
+use common::{confirm, init_logging, print_usage, print_version, root_guard};
+use tracing::error;
+
+use self::common::exec_cmd_for_user;
 
 const SERVICE_FILE: &str = include_str!("../../data/netpulsed.service");
 const SYSTEMD_SERVICE_PATH: &str = "/etc/systemd/system/netpulsed.service";
@@ -130,9 +135,24 @@ fn setup_systemd() -> Result<(), RunError> {
     println!("To update the reload the daemon definitions, run the following as root:");
     println!("  systemctl daemon-reload");
     println!("To enable and start the service, run the following as root:");
-    println!("  systemctl enable netpulse --now");
+    println!("  systemctl enable netpulsed.service --now");
     println!("To just start the service once, run the following as root:");
-    println!("  systemctl start netpulse");
+    println!("  systemctl start netpulsed.service --now");
+    println!();
+    if !confirm("Do this automatically now?") {
+        return Ok(());
+    }
+    let mut out;
+    out = Command::new("systemctl").arg("daemon-reload").output()?;
+    if !out.status.success() {
+        let info = String::from_utf8_lossy(&out.stdout);
+        let err = String::from_utf8_lossy(&out.stderr);
+        error!("could not reload the daemons:\nSTDERR:\n{err}\nSTDIN:\n{info}");
+    }
+
+    exec_cmd_for_user(Command::new("systemctl").arg("daemon-reload"));
+    exec_cmd_for_user(Command::new("systemctl").arg("enable netpulsed.service"));
+    exec_cmd_for_user(Command::new("systemctl").arg("restart netpulsed.service"));
 
     Ok(())
 }
