@@ -2,6 +2,40 @@
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/PlexSheep/netpulse/compare/v0.2.0...v0.3.0)
+
+### ⛰️ Features
+
+- *(daemon)* Add setup flag and make the daemon flag official - ([8a324c2](https://github.com/PlexSheep/netpulse/commit/8a324c2e2181d6b65f3b704236d20f37e9078f8a))
+- *(store)* Return the new checks from make_checks and let the daemon print them - ([d82e852](https://github.com/PlexSheep/netpulse/commit/d82e85206e3fff217704dbffb93d0722bc2af28c))
+- *(systemd)* Copy the netpulsed to /usr/local/bin/ in the setup - ([98c2aea](https://github.com/PlexSheep/netpulse/commit/98c2aead725647443f6da15d9c07a90f61cdb8f7))
+- *(systemd)* Only remove pidfile if it's a manual daemon - ([61b243b](https://github.com/PlexSheep/netpulse/commit/61b243bc325028b0fddcca540edb384b45a88ba5))
+- *(systemd)* Install service file - ([7b3c9e9](https://github.com/PlexSheep/netpulse/commit/7b3c9e948d575e07c984ea27295ac4148e191f38))
+- *(systemd)* Add netpulsed.service file - ([ffe7985](https://github.com/PlexSheep/netpulse/commit/ffe7985f198dd99ad512f1c0b542cc6678160f7f))
+- Default enable icmp again, as CAP_NET_RAW is okay with systemd - ([4617c85](https://github.com/PlexSheep/netpulse/commit/4617c85d9be94ffff1af8e7844045a753042530a))
+
+### 🐛 Bug Fixes
+
+- *(analyze)* Check for ip flag needs to be inverted - ([a08854d](https://github.com/PlexSheep/netpulse/commit/a08854df3b349af8a438877b99afa379bcff9b07))
+- *(daemon)* Setup copy was missing the bin name - ([87b6b2e](https://github.com/PlexSheep/netpulse/commit/87b6b2e57afffcad7c123ca933e80c51f870af69))
+
+### 🚜 Refactor
+
+- *(analyze)* Make analyze functions more generic and add more parts - ([0b3155b](https://github.com/PlexSheep/netpulse/commit/0b3155bb67f14d519c0d27dccea2994836c1709e))
+- *(daemon)* Consolidate setup and setup-systemd into just setup - ([ab3ebfb](https://github.com/PlexSheep/netpulse/commit/ab3ebfbf40650dab373f935545da850253d430ef))
+- Refactor logs, primitive_make_checks - ([1698378](https://github.com/PlexSheep/netpulse/commit/1698378789706d42ec06b37afb6a8f6c223d75bc))
+- Rename DaemonError to RunError and print netpulse -t data with group_display - ([edce0bb](https://github.com/PlexSheep/netpulse/commit/edce0bb4865fa56f5e6e59c96d5924b2dba48473))
+
+### 📚 Documentation
+
+- Add setup and update sections for the daemon to the readme - ([0dc80f0](https://github.com/PlexSheep/netpulse/commit/0dc80f0443922fe2612cdf1ed406b6cb796dc6bf))
+
+### ⚙️ Miscellaneous Tasks
+
+- Automatic Rust CI changes - ([b44b084](https://github.com/PlexSheep/netpulse/commit/b44b0840b8778d0fdc8ca3f88fdc7e57af7bedb6))
+- Remove unused import - ([624e8bd](https://github.com/PlexSheep/netpulse/commit/624e8bd0e49697f5c1a5bd32391c9663d7010edb))
+
+
 ## [0.2.0](https://github.com/PlexSheep/netpulse/compare/v0.1.0...v0.2.0)
 
 ### ⛰️ Features
