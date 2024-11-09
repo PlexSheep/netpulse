@@ -26,7 +26,7 @@ use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus};
+use std::process::Command;
 use std::sync::atomic::AtomicBool;
 
 use daemonize::Daemonize;
@@ -144,8 +144,8 @@ fn setup_systemd() -> Result<(), RunError> {
     if !confirm("Do this automatically now?") {
         return Ok(());
     }
-    let mut out;
-    out = Command::new("systemctl").arg("daemon-reload").output()?;
+
+    let out = Command::new("systemctl").arg("daemon-reload").output()?;
     if !out.status.success() {
         let info = String::from_utf8_lossy(&out.stdout);
         let err = String::from_utf8_lossy(&out.stderr);
