@@ -1,7 +1,9 @@
 use getopts::Options;
 use netpulse::DAEMON_PID_FILE;
-use tracing::{error, info};
+use tracing::{error, info, trace};
 use tracing_subscriber::FmtSubscriber;
+
+pub const ENV_LOG_LEVEL: &str = "NETPULSE_LOG_LEVEL";
 
 #[allow(dead_code)] // idk why it says thet, netpulsed uses it a few times
 pub(crate) fn root_guard() {
@@ -23,6 +25,18 @@ pub(crate) fn print_version() -> ! {
 }
 
 pub(crate) fn init_logging(level: tracing::Level) {
+    let level: tracing::Level = match std::env::var(ENV_LOG_LEVEL) {
+        Err(_) => level,
+        Ok(raw) => match tracing::Level::from_str(&raw) {
+            Err(e) => {
+                eprintln!("Bad log level was given with the environment variable '{ENV_LOG_LEVEL}': '{raw}', must be one of 'TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR'");
+                eprintln!("{e}");
+                std::process::exit(1)
+            }
+            Ok(ll) => ll,
+        },
+    };
+
     // a builder for `FmtSubscriber`.
     let subscriber = FmtSubscriber::builder()
         // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
@@ -37,10 +51,12 @@ pub(crate) fn init_logging(level: tracing::Level) {
         .finish();
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    trace!("logging initialized with level {level}");
 }
 
 use std::io::{self, Write};
 use std::process::Command;
+use std::str::FromStr;
 
 /// Prompts the user for confirmation with a custom message.
 /// Returns true if the user confirms, false otherwise.
