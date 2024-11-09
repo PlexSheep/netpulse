@@ -40,7 +40,7 @@ mod common;
 mod daemon;
 use daemon::daemon;
 
-use common::{print_usage, print_version, root_guard};
+use common::{init_logging, print_usage, print_version, root_guard};
 
 const SERVICE_FILE: &str = include_str!("../../data/netpulsed.service");
 const SYSTEMD_SERVICE_PATH: &str = "/etc/systemd/system/netpulsed.service";
@@ -52,6 +52,7 @@ const SYSTEMD_SERVICE_PATH: &str = "/etc/systemd/system/netpulsed.service";
 static USES_DAEMON_SYSTEM: AtomicBool = AtomicBool::new(false);
 
 fn main() -> Result<(), RunError> {
+    init_logging(tracing::Level::DEBUG);
     let args: Vec<String> = std::env::args().collect();
     let program = &args[0];
     let mut opts = Options::new();

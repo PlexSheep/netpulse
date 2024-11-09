@@ -17,11 +17,12 @@ use netpulse::errors::RunError;
 use netpulse::records::{display_group, Check};
 use netpulse::store::Store;
 
-use self::common::{print_usage, print_version};
+use self::common::{init_logging, print_usage, print_version};
 
 mod common;
 
 fn main() {
+    init_logging(tracing::Level::INFO);
     let args: Vec<String> = std::env::args().collect();
     let program = &args[0];
     let mut opts = Options::new();

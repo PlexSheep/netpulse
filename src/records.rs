@@ -44,6 +44,7 @@ use std::time::{self};
 use deepsize::DeepSizeOf;
 use flagset::{flags, FlagSet};
 use serde::{Deserialize, Serialize};
+use tracing::error;
 
 use crate::errors::StoreError;
 
@@ -146,7 +147,7 @@ impl CheckType {
                 check.add_flag(CheckFlag::TypeHTTP);
                 match crate::checks::check_http(remote) {
                     Err(err) => {
-                        eprintln!("error while performing an Http check: {err}")
+                        error!("error while performing an Http check: {err}")
                     }
                     Ok(lat) => {
                         check.add_flag(CheckFlag::Success);
@@ -164,7 +165,7 @@ impl CheckType {
                 check.add_flag(CheckFlag::TypeIcmp);
                 match crate::checks::just_fucking_ping(remote) {
                     Err(err) => {
-                        eprintln!("error while performing an ICMPv4 check: {err}")
+                        error!("error while performing an ICMPv4 check: {err}")
                     }
                     Ok(lat) => {
                         check.add_flag(CheckFlag::Success);
@@ -181,7 +182,7 @@ impl CheckType {
                 check.add_flag(CheckFlag::TypeIcmp);
                 match crate::checks::just_fucking_ping(remote) {
                     Err(err) => {
-                        eprintln!("error while performing an ICMPv6 check: {err}")
+                        error!("error while performing an ICMPv6 check: {err}")
                     }
                     Ok(lat) => {
                         check.add_flag(CheckFlag::Success);

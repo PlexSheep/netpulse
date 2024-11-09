@@ -30,6 +30,7 @@
 //! - Store metadata (hashes, versions)
 
 use deepsize::DeepSizeOf;
+use tracing::error;
 
 use crate::errors::AnalysisError;
 use crate::records::{Check, CheckFlag, CheckType};
@@ -352,7 +353,7 @@ fn gereric_ip_analyze(
         .filter(|c| match c.ip_type() {
             Ok(ip) => ip,
             Err(err) => {
-                eprintln!("check '{}' has bad flags: {err}", c.get_hash());
+                error!("check '{}' has bad flags: {err}", c.get_hash());
                 return false;
             }
         } == CheckFlag::IPv4

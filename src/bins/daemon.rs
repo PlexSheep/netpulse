@@ -27,6 +27,7 @@ use netpulse::DAEMON_PID_FILE;
 use nix::sys::signal::{self, SigHandler, Signal};
 
 use netpulse::store::Store;
+use tracing::{error, info};
 
 use crate::USES_DAEMON_SYSTEM;
 
@@ -43,19 +44,19 @@ static RESTART: AtomicBool = AtomicBool::new(false);
 // TODO: better error handling, keep going even if everything goes boom
 pub(crate) fn daemon() {
     signal_hook();
-    println!("starting daemon...");
+    info!("starting daemon...");
     let mut store = load_store();
-    println!("store loaded, entering main loop");
+    info!("store loaded, entering main loop");
     loop {
         if TERMINATE.load(std::sync::atomic::Ordering::Relaxed) {
-            println!("terminating the daemon");
+            info!("terminating the daemon");
             if let Err(e) = cleanup(&store) {
-                eprintln!("could not clean up before terminating: {e:#?}");
+                error!("could not clean up before terminating: {e:#?}");
             }
             std::process::exit(1);
         }
         if RESTART.load(std::sync::atomic::Ordering::Relaxed) {
-            println!("restarting the daemon");
+            info!("restarting the daemon");
             store = load_store();
         }
         let time = time::SystemTime::now();
@@ -67,7 +68,7 @@ pub(crate) fn daemon() {
             == 0
         {
             if let Err(err) = wakeup(&mut store) {
-                eprintln!("error in the wakeup turn: {err}");
+                error!("error in the wakeup turn: {err}");
             }
         }
         std::thread::sleep(Duration::from_secs(1));
@@ -77,9 +78,9 @@ pub(crate) fn daemon() {
 fn load_store() -> Store {
     match Store::load_or_create() {
         Err(e) => {
-            eprintln!("{e}");
+            error!("{e}");
             if let Err(e) = cleanup_without_store() {
-                eprintln!("error while trying to cleanup: {e}");
+                error!("error while trying to cleanup: {e}");
             }
             std::process::exit(1)
         }
@@ -98,17 +99,17 @@ fn load_store() -> Store {
 ///
 /// Returns [DaemonError] if store operations fail.
 fn wakeup(store: &mut Store) -> Result<(), RunError> {
-    println!("waking up!");
+    info!("waking up!");
 
     let mut buf = String::new();
     display_group(&store.make_checks(), &mut buf)?;
-    println!("{buf}");
+    info!("{buf}");
 
     if let Err(err) = store.save() {
-        eprintln!("error while saving to file: {err:}");
+        error!("error while saving to file: {err:}");
     }
 
-    println!("done!");
+    info!("done!");
     Ok(())
 }
 
@@ -130,7 +131,7 @@ fn signal_hook() {
 /// Returns [DaemonError] if cleanup operations fail.
 fn cleanup(store: &Store) -> Result<(), RunError> {
     if let Err(err) = store.save() {
-        eprintln!("error while saving to file: {err:#?}");
+        error!("error while saving to file: {err:#?}");
         return Err(err.into());
     }
 
@@ -146,7 +147,7 @@ fn cleanup_without_store() -> Result<(), RunError> {
             if matches!(err.kind(), std::io::ErrorKind::NotFound) {
                 // yeah, idk, ignore?
             } else {
-                eprintln!("Failed to remove PID file: {}", err);
+                error!("Failed to remove PID file: {}", err);
                 return Err(err.into());
             }
         }

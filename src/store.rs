@@ -26,6 +26,7 @@ use std::str::FromStr;
 
 use deepsize::DeepSizeOf;
 use serde::{Deserialize, Serialize};
+use tracing::{error, warn};
 
 use crate::errors::StoreError;
 use crate::records::{Check, CheckType, TARGETS};
@@ -216,7 +217,7 @@ impl Store {
         fs::create_dir_all(parent_path)?;
         std::os::unix::fs::chown(parent_path, Some(user.uid.into()), Some(user.gid.into()))
             .inspect_err(|e| {
-                eprintln!("could not set owner of store directory to the daemon user: {e}")
+                error!("could not set owner of store directory to the daemon user: {e}")
             })?;
         Ok(())
     }
@@ -247,7 +248,7 @@ impl Store {
         {
             Ok(file) => file,
             Err(err) => {
-                eprintln!("opening the store file for writing failed: {err}");
+                error!("opening the store file for writing failed: {err}");
                 return Err(err.into());
             }
         };
@@ -290,13 +291,13 @@ impl Store {
                 StoreError::DoesNotExist => Self::create(),
                 StoreError::Load { source } => {
                     dbg!(source);
-                    eprintln!("{err}");
+                    error!("{err}");
 
                     #[allow(clippy::single_match)] // more will certainly come later
                     match &(**source) {
                         bincode::ErrorKind::Io(io_err) => match io_err.kind() {
                             ErrorKind::UnexpectedEof => {
-                                eprintln!("The file ends too early, might be an old format, cut off, or empty. Not doing anything in case you need to keep old data");
+                                error!("The file ends too early, might be an old format, cut off, or empty. Not doing anything in case you need to keep old data");
                             }
                             _ => (),
                         },
@@ -306,7 +307,7 @@ impl Store {
                     Err(err)
                 }
                 _ => {
-                    eprintln!("Error while trying to load the store: {err:#}");
+                    error!("Error while trying to load the store: {err:#}");
                     Err(err)
                 }
             },
@@ -340,7 +341,7 @@ impl Store {
             Err(err) => {
                 match err.kind() {
                     ErrorKind::NotFound => return Err(StoreError::DoesNotExist),
-                    ErrorKind::PermissionDenied => eprintln!("Not allowed to access store"),
+                    ErrorKind::PermissionDenied => error!("Not allowed to access store"),
                     _ => (),
                 };
 
@@ -357,12 +358,12 @@ impl Store {
 
         // TODO: somehow account for old versions that are not compatible with the store struct
         if store.version != Version::CURRENT {
-            eprintln!("The store that was loaded is not of the current version:\nstore has {} but the current version is {}", store.version, Version::CURRENT);
+            error!("The store that was loaded is not of the current version:\nstore has {} but the current version is {}", store.version, Version::CURRENT);
             if Version::SUPPROTED.contains(&store.version) {
-                eprintln!("The old store version is still supported, migrating to newer version");
+                error!("The old store version is still supported, migrating to newer version");
                 store.version = Version::CURRENT;
             } else {
-                eprintln!("The store version is not supported");
+                error!("The store version is not supported");
                 return Err(StoreError::UnsupportedVersion);
             }
         }
@@ -455,7 +456,7 @@ impl Store {
         let out = Command::new("sha256sum").arg(Self::path()).output()?;
 
         if !out.status.success() {
-            eprintln!(
+            error!(
                 "error while making the hash over the store file:\nStdout\n{:?}\n\nStdin\n{:?}",
                 out.stdout, out.stderr
             );
@@ -499,7 +500,7 @@ impl Store {
     pub fn primitive_make_checks(buf: &mut Vec<Check>) {
         for check_type in CheckType::default_enabled() {
             if [CheckType::IcmpV4, CheckType::IcmpV6].contains(check_type) && !has_cap_net_raw() {
-                eprintln!("Does not have CAP_NET_RAW, can't use {check_type}, skipping");
+                warn!("Does not have CAP_NET_RAW, can't use {check_type}, skipping");
                 continue;
             }
             for target in TARGETS {
@@ -528,7 +529,7 @@ fn has_cap_net_raw() -> bool {
     if let Ok(caps) = caps::read(None, caps::CapSet::Effective) {
         caps.contains(&caps::Capability::CAP_NET_RAW)
     } else {
-        eprintln!("Could not read capabilities");
+        warn!("Could not read capabilities");
         false
     }
 }

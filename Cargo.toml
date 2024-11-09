@@ -12,10 +12,11 @@ homepage = "https://github.com/PlexSheep/netpulse"
 repository = "https://github.com/PlexSheep/netpulse"
 
 [features]
-default = ["compression", "http", "ping"]
+default = ["compression", "http", "ping", "executable"]
 compression = ["dep:zstd"]
 ping = ["dep:ping"]
 http = ["dep:curl"]
+executable = ["dep:tracing-subscriber"]
 
 [dependencies]
 getopts = "0.2"
@@ -31,11 +32,15 @@ curl = { version = "0.4.47", optional = true, default-features = false }
 humantime = "2.1.0"
 caps = "0.5.5"
 deepsize = "0.2.0"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", optional = true }
 
 [[bin]] # client
 name = "netpulse"
 path = "src/bins/netpulse.rs"
+required-features = ["executable"]
 
 [[bin]] # daemon and controlling it
 name = "netpulsed"
 path = "src/bins/netpulsed.rs"
+required-features = ["executable"]

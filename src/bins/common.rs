@@ -1,4 +1,6 @@
 use getopts::Options;
+use tracing::Level;
+use tracing_subscriber::FmtSubscriber;
 
 #[allow(dead_code)] // idk why it says thet, netpulsed uses it a few times
 pub(crate) fn root_guard() {
@@ -17,4 +19,21 @@ pub(crate) fn print_usage(program: &str, opts: Options) -> ! {
 pub(crate) fn print_version() -> ! {
     println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
     std::process::exit(0)
+}
+
+pub(crate) fn init_logging(level: tracing::Level) {
+    // a builder for `FmtSubscriber`.
+    let subscriber = FmtSubscriber::builder()
+        // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
+        // will be written to stdout.
+        .with_max_level(level)
+        // No need for the time. It's either ran with systemd (which shows the time in journalctl)
+        // or it's the reader which doesn't need it.
+        .without_time()
+        // would show the module where the thing comes from
+        .with_target(false)
+        // completes the builder.
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 }
