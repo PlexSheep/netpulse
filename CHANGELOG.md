@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.4.1](https://github.com/PlexSheep/netpulse/compare/v0.4.0...v0.4.1)
+
+### ⛰️ Features
+
+- Consider an environment variable when initializing the logging - ([0142cc5](https://github.com/PlexSheep/netpulse/commit/0142cc553b93392e84cd66e2475836647d8007c7))
+
+### ⚙️ Miscellaneous Tasks
+
+- Run doctests too in ci - ([ef3703a](https://github.com/PlexSheep/netpulse/commit/ef3703a44ed21c0164d2bb6efcf2d7a1600f4789))
+
+
 ## [0.4.0](https://github.com/PlexSheep/netpulse/compare/v0.3.0...v0.4.0)
 
 ### ⛰️ Features
