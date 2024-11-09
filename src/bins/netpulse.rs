@@ -17,6 +17,10 @@ use netpulse::errors::RunError;
 use netpulse::records::{display_group, Check};
 use netpulse::store::Store;
 
+use self::common::{print_usage, print_version};
+
+mod common;
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let program = &args[0];
@@ -32,20 +36,17 @@ fn main() {
         Err(f) => {
             eprintln!("{f}");
             print_usage(program, opts);
-            std::process::exit(1)
         }
     };
 
     if matches.opt_present("help") {
         print_usage(program, opts);
-        return;
     }
     if matches.opt_present("failed") {
         failed_only = true;
     }
     if matches.opt_present("version") {
-        println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
-        return;
+        print_version()
     }
     if matches.opt_present("dump") {
         dump(failed_only);
@@ -57,11 +58,6 @@ fn main() {
     } else {
         analysis();
     }
-}
-
-fn print_usage(program: &str, opts: Options) {
-    let brief = format!("Usage: {} [options]", program);
-    print!("{}", opts.usage(&brief));
 }
 
 fn test_checks() -> Result<(), RunError> {

@@ -36,8 +36,11 @@ use nix::errno::Errno;
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
 
+mod common;
 mod daemon;
 use daemon::daemon;
+
+use common::{print_usage, print_version, root_guard};
 
 const SERVICE_FILE: &str = include_str!("../../data/netpulsed.service");
 const SYSTEMD_SERVICE_PATH: &str = "/etc/systemd/system/netpulsed.service";
@@ -72,14 +75,13 @@ fn main() -> Result<(), RunError> {
         Err(f) => {
             eprintln!("{f}");
             print_usage(program, opts);
-            std::process::exit(1)
         }
     };
 
     if matches.opt_present("help") {
         print_usage(program, opts);
     } else if matches.opt_present("version") {
-        println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"))
+        print_version()
     } else if matches.opt_present("start") {
         startd();
     } else if matches.opt_present("info") {
@@ -227,18 +229,6 @@ fn endd() {
         if let Err(err) = fs::remove_file(DAEMON_PID_FILE) {
             eprintln!("Could not remove the pid file: {err}")
         }
-    }
-}
-
-fn print_usage(program: &str, opts: Options) {
-    let brief = format!("Usage: {} [options]", program);
-    print!("{}", opts.usage(&brief));
-}
-
-pub(crate) fn root_guard() {
-    if !nix::unistd::getuid().is_root() {
-        eprintln!("This needs to be run as root");
-        std::process::exit(1)
     }
 }
 
