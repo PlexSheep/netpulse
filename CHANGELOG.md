@@ -2,6 +2,44 @@
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/PlexSheep/netpulse/compare/v0.3.0...v0.4.0)
+
+### ⛰️ Features
+
+- *(analyze)* Dump the entire store (it's checks) [#8](https://github.com/PlexSheep/netpulse/pull/8) - ([5770e01](https://github.com/PlexSheep/netpulse/commit/5770e019942ad4905233ae7ec6dc38de0f348b61))
+- *(analyze)* Show size of store in mem and fs + ratio - ([d12638b](https://github.com/PlexSheep/netpulse/commit/d12638b71194bc3738b0047e6bfb1753aeeffd86))
+- *(analyze)* Print the store version of in memory store - ([2dd766d](https://github.com/PlexSheep/netpulse/commit/2dd766d1e793edd55a998fd6424ca11eb796fd80))
+- *(daemon)* Have setup ask to execute the systemd stuff for the user - ([643a282](https://github.com/PlexSheep/netpulse/commit/643a2826fd72cea2271bfc781f242f07b8a103b2))
+- *(daemon)* Reload the store on SIGHUP - ([235d250](https://github.com/PlexSheep/netpulse/commit/235d2508620fca038f2fb878235ab4441a324121))
+- *(reader)* Dump all and dump only failed - ([c52f4e3](https://github.com/PlexSheep/netpulse/commit/c52f4e344dbb5d5f9b387a92067a0319cbb85672))
+- *(setup)* Stop the netpulsed service at the start of setup - ([9a5fdd0](https://github.com/PlexSheep/netpulse/commit/9a5fdd04521bfe1d897d633cf6e11633572965eb))
+- Use logging with tracing for everything in the library and set it up for the executables [#5](https://github.com/PlexSheep/netpulse/pull/5) - ([450fd05](https://github.com/PlexSheep/netpulse/commit/450fd05b6179c0fb8630b64d593de65fe589fae4))
+
+### 🐛 Bug Fixes
+
+- *(daemon)* Stop_requested was initialized with true - ([d3d00f6](https://github.com/PlexSheep/netpulse/commit/d3d00f639a8f5c764c05888ef21522e944978782))
+- *(setup)* Args need to be split - ([ca56268](https://github.com/PlexSheep/netpulse/commit/ca56268264937f1ec4aee941658f474ed03818ad))
+- *(setup)* Stop the running service first - ([8b56aa1](https://github.com/PlexSheep/netpulse/commit/8b56aa12f5d15940cb12603ba972cfd3b1f220d9))
+- Logging in common/netpulsed - ([9f54039](https://github.com/PlexSheep/netpulse/commit/9f540394c248a2798255ed5132fde7423df98d05))
+
+### 🚜 Refactor
+
+- *(analyze)* Improve display functions - ([561f2ff](https://github.com/PlexSheep/netpulse/commit/561f2ffa7e8bcdfa771c8dca052e20bcc48895ce))
+- *(bins)* Share some code in the new common module - ([6cfca2b](https://github.com/PlexSheep/netpulse/commit/6cfca2b14e82d1e433581fc96d4219d5a97c96c5))
+- *(daemon)* Better error handling in main - ([8cd29a2](https://github.com/PlexSheep/netpulse/commit/8cd29a27d8159cadc7614067aa1aca7201d19680))
+- *(records)* Display_groups moved to records, better display - ([7235105](https://github.com/PlexSheep/netpulse/commit/723510526a810785b9e95eed0e49a83ed47864fa))
+- *(setup)* More debug prints for the systemd setup - ([0714ebf](https://github.com/PlexSheep/netpulse/commit/0714ebf5c6794e33cabe3e8edfeb3ebb0ea0213a))
+
+### 📚 Documentation
+
+- *(api)* Fix test - ([0005078](https://github.com/PlexSheep/netpulse/commit/000507824c6c8825d9279990be38fdc39abe0fd6))
+
+### ⚙️ Miscellaneous Tasks
+
+- Automatic Rust CI changes - ([56dd8ce](https://github.com/PlexSheep/netpulse/commit/56dd8ceb6413c1e588b879043cc771404e57296a))
+- Fix pedantic warnings - ([cc52d70](https://github.com/PlexSheep/netpulse/commit/cc52d7068ce6317dbde1c1e63406423b5c1936e4))
+
+
 ## [0.3.0](https://github.com/PlexSheep/netpulse/compare/v0.2.0...v0.3.0)
 
 ### ⛰️ Features
