@@ -27,7 +27,7 @@ use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::StoreError;
-use crate::records::{Check, CheckType, TARGETS_HTTP};
+use crate::records::{Check, CheckType, TARGETS};
 use crate::DAEMON_USER;
 
 #[cfg(feature = "compression")]
@@ -469,8 +469,7 @@ impl Store {
 
     /// Creates and adds checks for all configured targets.
     ///
-    /// Iterates through [TARGETS_HTTP] and creates an HTTP check
-    /// for each target IP address.
+    /// Iterates through [CheckType::default_enabled] and [TARGETS] and creates a [Checks](Check).
     ///
     /// Only HTTP checks are done for now, as ICMP needs `CAP_NET_RAW` and DNS is not yet
     /// implemented.
@@ -482,14 +481,8 @@ impl Store {
             .last()
             .map(|a| a.0)
             .unwrap_or(0);
-        for target in TARGETS_HTTP {
-            self.checks.push(
-                CheckType::Http.make(
-                    std::net::IpAddr::from_str(target)
-                        .expect("a target constant was not an Ip Address"),
-                ),
-            );
-        }
+
+        Self::primitive_make_checks(&mut self.checks);
 
         let mut made_checks = Vec::new();
         for new_check in self.checks.iter().skip(last_old) {
@@ -497,5 +490,39 @@ impl Store {
         }
 
         made_checks
+    }
+
+    /// Creates and adds checks for all configured targets.
+    ///
+    /// Iterates through [CheckType::default_enabled] and [TARGETS] and creates a [Checks](Check).
+    pub fn primitive_make_checks(buf: &mut Vec<Check>) {
+        for check_type in CheckType::default_enabled() {
+            if [CheckType::IcmpV4, CheckType::IcmpV6].contains(check_type) && !has_cap_net_raw() {
+                eprintln!("Does not have CAP_NET_RAW, can't use {check_type}, skipping");
+                continue;
+            }
+            for target in TARGETS {
+                let check = check_type.make(
+                    std::net::IpAddr::from_str(target)
+                        .expect("a target constant was not an Ip Address"),
+                );
+                buf.push(check);
+            }
+        }
+    }
+}
+
+fn has_cap_net_raw() -> bool {
+    // First check if we're root (which implies all capabilities)
+    if nix::unistd::getuid().is_root() {
+        return true;
+    }
+
+    // Check current process capabilities
+    if let Ok(caps) = caps::read(None, caps::CapSet::Effective) {
+        caps.contains(&caps::Capability::CAP_NET_RAW)
+    } else {
+        eprintln!("Could not read capabilities");
+        false
     }
 }

@@ -235,7 +235,7 @@ fn print_usage(program: &str, opts: Options) {
     print!("{}", opts.usage(&brief));
 }
 
-fn root_guard() {
+pub(crate) fn root_guard() {
     if !nix::unistd::getuid().is_root() {
         eprintln!("This needs to be run as root");
         std::process::exit(1)

@@ -12,7 +12,7 @@ homepage = "https://github.com/PlexSheep/netpulse"
 repository = "https://github.com/PlexSheep/netpulse"
 
 [features]
-default = ["compression", "http"]
+default = ["compression", "http", "ping"]
 compression = ["dep:zstd"]
 ping = ["dep:ping"]
 http = ["dep:curl"]
@@ -29,6 +29,7 @@ nix = { version = "0.29.0", features = ["signal", "process", "user"] }
 ping = { version = "0.5.2", optional = true }
 curl = { version = "0.4.47", optional = true, default-features = false }
 humantime = "2.1.0"
+caps = "0.5.5"
 
 [[bin]] # client
 name = "netpulse"

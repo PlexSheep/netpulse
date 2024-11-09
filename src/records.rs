@@ -52,9 +52,7 @@ use crate::errors::StoreError;
 ///
 /// Only add valid IP addresses to this list. Invalid addresses will cause panics
 /// when parsed.
-pub const TARGETS: &[&str] = &["1.1.1.1", "2606:4700:4700::1111", "127.0.0.1"];
-/// Subset of [TARGETS] used specifically for HTTP checks.
-pub const TARGETS_HTTP: &[&str] = &[TARGETS[0], TARGETS[1]];
+pub const TARGETS: &[&str] = &["1.1.1.1", "2606:4700:4700::1111"];
 
 flags! {
     /// Flags describing the status and type of a check.
@@ -147,7 +145,7 @@ impl CheckType {
                 check.add_flag(CheckFlag::TypeHTTP);
                 match crate::checks::check_http(remote) {
                     Err(err) => {
-                        eprintln!("unknown error when performing a Http check: {err}")
+                        eprintln!("error while performing an Http check: {err}")
                     }
                     Ok(lat) => {
                         check.add_flag(CheckFlag::Success);
@@ -165,7 +163,7 @@ impl CheckType {
                 check.add_flag(CheckFlag::TypeIcmp);
                 match crate::checks::just_fucking_ping(remote) {
                     Err(err) => {
-                        eprintln!("unknown error when performing a ICMPv4 (ping) check: {err}")
+                        eprintln!("error while performing an ICMPv4 check: {err}")
                     }
                     Ok(lat) => {
                         check.add_flag(CheckFlag::Success);
@@ -182,7 +180,7 @@ impl CheckType {
                 check.add_flag(CheckFlag::TypeIcmp);
                 match crate::checks::just_fucking_ping(remote) {
                     Err(err) => {
-                        eprintln!("unknown error when performing a ICMPv6 (ping) check: {err}")
+                        eprintln!("error while performing an ICMPv6 check: {err}")
                     }
                     Ok(lat) => {
                         check.add_flag(CheckFlag::Success);

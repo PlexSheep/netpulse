@@ -15,8 +15,8 @@ use std::str::FromStr;
 
 use getopts::Options;
 use netpulse::analyze::{self, display_group};
-use netpulse::errors::RunError;
-use netpulse::records::{Check, CheckType, TARGETS_HTTP};
+use netpulse::errors::{RunError, StoreError};
+use netpulse::records::{Check, CheckType, TARGETS};
 use netpulse::store::Store;
 
 fn main() {
@@ -54,12 +54,7 @@ fn print_usage(program: &str, opts: Options) {
 fn test_checks() -> Result<(), RunError> {
     let mut checks = Vec::new();
     let mut buf = String::new();
-    for target in TARGETS_HTTP {
-        let check = CheckType::Http.make(
-            std::net::IpAddr::from_str(target).expect("a target constant was not an Ip Address"),
-        );
-        checks.push(check);
-    }
+    Store::primitive_make_checks(&mut checks);
     let hack_checks: Vec<&Check> = checks.iter().collect();
     display_group(&hack_checks, &mut buf)?;
     println!("{buf}");
