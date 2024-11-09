@@ -125,7 +125,11 @@ fn setup_systemd() -> Result<(), RunError> {
                 stop_requested = true;
                 continue;
             }
-            exec_cmd_for_user(Command::new("systemctl").arg("stop netpulsed.service"));
+            exec_cmd_for_user(
+                Command::new("systemctl")
+                    .arg("stop")
+                    .arg("netpulsed.service"),
+            );
             stop_requested = true;
             println!(
                 "waiting until netpulsed is no longer running (pid: {:?})",
