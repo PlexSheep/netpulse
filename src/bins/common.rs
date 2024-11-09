@@ -1,5 +1,5 @@
 use getopts::Options;
-use tracing::{error, Level};
+use tracing::error;
 use tracing_subscriber::FmtSubscriber;
 
 #[allow(dead_code)] // idk why it says thet, netpulsed uses it a few times
@@ -78,7 +78,7 @@ pub(crate) fn confirm(message: &str) -> bool {
     matches!(input.as_str(), "y" | "yes")
 }
 
-pub(crate) fn exec_cmd_for_user(cmd: &mut Command) -> () {
+pub(crate) fn exec_cmd_for_user(cmd: &mut Command) {
     let out = match cmd.output() {
         Err(e) => {
             error!("{e}");
