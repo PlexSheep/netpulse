@@ -183,7 +183,7 @@ pub fn analyze(store: &Store) -> Result<String, AnalysisError> {
 ///
 /// Returns [AnalysisError] if string formatting fails.
 fn barrier(f: &mut String, title: &str) -> Result<(), AnalysisError> {
-    writeln!(f, "{:=<10}{:=<90}", "", format!(" {title} "))?;
+    writeln!(f, "{:=<10}{:=<48}", "", format!(" {title} "))?;
     Ok(())
 }
 
@@ -195,7 +195,7 @@ fn key_value_write(
     title: &str,
     content: impl Display,
 ) -> Result<(), std::fmt::Error> {
-    writeln!(f, "{:<20}: {:<78}", title, content.to_string())
+    writeln!(f, "{:<24}: {}", title, content)
 }
 
 /// Analyzes and formats outage information from the store.
