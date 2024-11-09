@@ -31,6 +31,7 @@ use netpulse::store::Store;
 use crate::USES_DAEMON_SYSTEM;
 
 static TERMINATE: AtomicBool = AtomicBool::new(false);
+static RESTART: AtomicBool = AtomicBool::new(false);
 
 /// Main daemon process function.
 ///
@@ -43,16 +44,7 @@ static TERMINATE: AtomicBool = AtomicBool::new(false);
 pub(crate) fn daemon() {
     signal_hook();
     println!("starting daemon...");
-    let mut store = match Store::load_or_create() {
-        Err(e) => {
-            eprintln!("{e}");
-            if let Err(e) = cleanup_without_store() {
-                eprintln!("error while trying to cleanup: {e}");
-            }
-            std::process::exit(1)
-        }
-        Ok(s) => s,
-    };
+    let mut store = load_store();
     println!("store loaded, entering main loop");
     loop {
         if TERMINATE.load(std::sync::atomic::Ordering::Relaxed) {
@@ -61,6 +53,10 @@ pub(crate) fn daemon() {
                 eprintln!("could not clean up before terminating: {e:#?}");
             }
             std::process::exit(1);
+        }
+        if RESTART.load(std::sync::atomic::Ordering::Relaxed) {
+            println!("restarting the daemon");
+            store = load_store();
         }
         let time = time::SystemTime::now();
         if time
@@ -75,6 +71,19 @@ pub(crate) fn daemon() {
             }
         }
         std::thread::sleep(Duration::from_secs(1));
+    }
+}
+
+fn load_store() -> Store {
+    match Store::load_or_create() {
+        Err(e) => {
+            eprintln!("{e}");
+            if let Err(e) = cleanup_without_store() {
+                eprintln!("error while trying to cleanup: {e}");
+            }
+            std::process::exit(1)
+        }
+        Ok(s) => s,
     }
 }
 
@@ -105,7 +114,7 @@ fn wakeup(store: &mut Store) -> Result<(), RunError> {
 
 fn signal_hook() {
     unsafe {
-        signal::signal(Signal::SIGTERM, SigHandler::Handler(handle_sigterm))
+        signal::signal(Signal::SIGTERM, SigHandler::Handler(handle_signal))
             .expect("failed to set up signal handler");
     }
 }
@@ -146,7 +155,22 @@ fn cleanup_without_store() -> Result<(), RunError> {
     Ok(())
 }
 
-/// Signal handler for things like SIGTERM
-extern "C" fn handle_sigterm(_: i32) {
-    TERMINATE.store(true, std::sync::atomic::Ordering::Relaxed);
+/// Signal handler for things like SIGTERM and SIGHUP that should terminate, restart or otherwise influence the program
+///
+/// Default behavior is terminating the program in a controlled manner
+extern "C" fn handle_signal(signal: i32) {
+    let signal: nix::sys::signal::Signal =
+        nix::sys::signal::Signal::try_from(signal).expect("got an undefined SIGNAL");
+    match signal {
+        Signal::SIGTERM => {
+            TERMINATE.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        Signal::SIGHUP => {
+            RESTART.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        _ => {
+            // the default behavior is terminating
+            TERMINATE.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
 }
