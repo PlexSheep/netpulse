@@ -116,7 +116,7 @@ pub fn just_fucking_ping(remote: IpAddr) -> Result<u16, CheckError> {
 /// # Examples
 ///
 /// ```rust
-/// use std::net::IpAddr;  
+/// use std::net::IpAddr;
 /// use netpulse::checks::check_http;
 ///
 /// let addr: IpAddr = "1.1.1.1".parse().unwrap();

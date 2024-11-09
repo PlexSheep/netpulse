@@ -41,6 +41,7 @@ use std::hash::{Hash, Hasher};
 use std::net::IpAddr;
 use std::time::{self};
 
+use deepsize::DeepSizeOf;
 use flagset::{flags, FlagSet};
 use serde::{Deserialize, Serialize};
 
@@ -91,7 +92,7 @@ flags! {
 ///
 /// This enum represents the different kinds of checks that can be performed.
 /// Each variant corresponds to a specific protocol or method of testing connectivity.
-#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Clone, Copy, DeepSizeOf)]
 pub enum CheckType {
     /// DNS resolution check (not yet implemented)
     Dns,
@@ -259,6 +260,12 @@ pub struct Check {
     latency: Option<u16>,
     /// Target IP address that was checked
     target: IpAddr,
+}
+
+impl DeepSizeOf for Check {
+    fn deep_size_of_children(&self, context: &mut deepsize::Context) -> usize {
+        self.latency.deep_size_of_children(context)
+    }
 }
 
 impl Check {
@@ -459,7 +466,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_max_time_fits_in_latency_field() {
+    fn test_creating_check() {
         let _c = Check::new(
             time::SystemTime::now(),
             CheckFlag::Success,
@@ -468,5 +475,48 @@ mod test {
         );
         // if it can be created, that's good enough for me, I'm just worried that I'll change the
         // timeout ms some day and this will break
+    }
+
+    #[test]
+    fn test_check_size_of_check() {
+        let c = Check::new(
+            time::SystemTime::now(),
+            CheckFlag::Success,
+            Some(TIMEOUT_MS),
+            "127.0.0.1".parse().unwrap(),
+        );
+        assert_eq!(
+            c.deep_size_of(),
+            std::mem::size_of::<IpAddr>() // self.target
+            + std::mem::size_of::<u64>() // self.timestamp
+            + std::mem::size_of::<u16>() // self.flags
+            +3 /* latency */ + 2 // latency padding?
+        );
+        let c1 = Check::new(
+            time::SystemTime::now(),
+            CheckFlag::Timeout,
+            None,
+            "127.0.0.1".parse().unwrap(),
+        );
+        assert_eq!(
+            c1.deep_size_of(),
+            std::mem::size_of::<IpAddr>() // self.target
+            + std::mem::size_of::<u64>() // self.timestamp
+            + std::mem::size_of::<u16>() // self.flags
+            +3 /* latency */ + 2 // latency padding?
+        );
+        let c2 = Check::new(
+            time::SystemTime::now(),
+            CheckFlag::Timeout,
+            None,
+            "::1".parse().unwrap(),
+        );
+        assert_eq!(
+            c2.deep_size_of(),
+            std::mem::size_of::<IpAddr>() // self.target
+            + std::mem::size_of::<u64>() // self.timestamp
+            + std::mem::size_of::<u16>() // self.flags
+            +3 /* latency */ + 2 // latency padding?
+        )
     }
 }

@@ -182,4 +182,11 @@ pub enum AnalysisError {
         #[from]
         source: std::fmt::Error,
     },
+    /// An I/O error occurred during analysis operations.
+    #[error("IO Error: {source}")]
+    Io {
+        /// Underlying error
+        #[from]
+        source: std::io::Error,
+    },
 }

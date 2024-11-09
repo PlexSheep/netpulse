@@ -24,6 +24,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::str::FromStr;
 
+use deepsize::DeepSizeOf;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::StoreError;
@@ -68,7 +69,7 @@ pub const ENV_PATH: &str = "NETPULSE_STORE_PATH";
 /// supported by this version of Netpulse
 ///
 /// This only describes the version of the [Store], not of [Netpulse](crate) itself.
-#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Copy, Clone, DeepSizeOf)]
 pub struct Version {
     /// Raw version number as u8
     inner: u8,
@@ -79,7 +80,7 @@ pub struct Version {
 /// The Store handles persistence of check results and provides methods for
 /// loading, saving, and managing the data. It includes versioning support
 /// for future format changes.
-#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, DeepSizeOf)]
 pub struct Store {
     /// Store format version
     version: Version,

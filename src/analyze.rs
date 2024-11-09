@@ -29,12 +29,15 @@
 //! - Outage analysis
 //! - Store metadata (hashes, versions)
 
+use deepsize::DeepSizeOf;
+
 use crate::errors::AnalysisError;
 use crate::records::{Check, CheckFlag, CheckType};
 use crate::store::Store;
 
 use std::fmt::{Display, Write};
 use std::hash::Hash;
+use std::os::unix::fs::MetadataExt;
 
 /// Represents a period of consecutive failed checks.
 ///
@@ -407,12 +410,25 @@ fn generic_type_analyze(
 /// Includes:
 /// - Hash of in-memory data structure
 /// - Hash of store file on disk
+/// - Size of in memory [Store], including all children (the actual checks)
+/// - Size of the [Store] file
+/// - Ratio of [Store] file size and in memory [Store]
 fn store_meta(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
+    let store_size_mem = store.deep_size_of();
+    let store_size_fs = std::fs::metadata(Store::path())?.size();
+
     key_value_write(f, "Hash Datastructure", store.display_hash())?;
     key_value_write(f, "Hash Store File", store.display_hash_of_file()?)?;
     key_value_write(f, "Store Version (mem)", store.version())?;
     // TODO: find a way to get the version just from file without deserializing it
     key_value_write(f, "Store Version (file)", "<TODO>")?;
+    key_value_write(f, "Store Size (mem)", store_size_mem)?;
+    key_value_write(f, "Store Size (file)", store_size_fs)?;
+    key_value_write(
+        f,
+        "File to Mem Ratio",
+        store_size_fs as f64 / store_size_mem as f64,
+    )?;
     Ok(())
 }
 
