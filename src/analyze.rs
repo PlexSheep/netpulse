@@ -136,7 +136,7 @@ pub fn analyze(store: &Store) -> Result<String, AnalysisError> {
     generalized(store, &mut f)?;
     barrier(&mut f, "HTTP")?;
     generic_type_analyze(store, &mut f, CheckType::Http)?;
-    barrier(&mut f, "ICMPv4")?;
+    barrier(&mut f, "ICMP")?;
     generic_type_analyze(store, &mut f, CheckType::Icmp)?;
     barrier(&mut f, "IPv4")?;
     gereric_ip_analyze(store, &mut f, CheckFlag::IPv4)?;
