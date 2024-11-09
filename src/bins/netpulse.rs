@@ -12,19 +12,21 @@
 //! Use the `--help` flag for more information about the usage.
 
 use getopts::Options;
-use netpulse::analyze::{self, display_group};
+use netpulse::analyze;
 use netpulse::errors::RunError;
-use netpulse::records::Check;
+use netpulse::records::{display_group, Check};
 use netpulse::store::Store;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let program = &args[0];
     let mut opts = Options::new();
+    let mut failed_only = false;
     opts.optflag("h", "help", "print this help menu");
     opts.optflag("V", "version", "print the version");
     opts.optflag("t", "test", "test run all checks");
     opts.optflag("d", "dump", "print out all checks");
+    opts.optflag("f", "failed", "only consider failed checks for dumping");
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
         Err(f) => {
@@ -36,10 +38,17 @@ fn main() {
 
     if matches.opt_present("help") {
         print_usage(program, opts);
-    } else if matches.opt_present("version") {
-        println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"))
-    } else if matches.opt_present("dump") {
-        dump();
+        return;
+    }
+    if matches.opt_present("failed") {
+        failed_only = true;
+    }
+    if matches.opt_present("version") {
+        println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
+        return;
+    }
+    if matches.opt_present("dump") {
+        dump(failed_only);
     } else if matches.opt_present("test") {
         if let Err(e) = test_checks() {
             eprintln!("{e}");
@@ -75,10 +84,14 @@ fn store_load() -> Store {
     }
 }
 
-fn dump() {
+fn dump(failed_only: bool) {
     let store = store_load();
     let mut buf = String::new();
-    let ref_checks: Vec<&Check> = store.checks().iter().collect();
+    let ref_checks: Vec<&Check> = if failed_only {
+        store.checks().iter().filter(|c| !c.is_success()).collect()
+    } else {
+        store.checks().iter().collect()
+    };
     if let Err(e) = display_group(&ref_checks, &mut buf) {
         eprintln!("{e}");
         std::process::exit(1);
