@@ -59,6 +59,7 @@ use std::process::Command;
 ///     println!("Operation cancelled");
 /// }
 /// ```
+#[allow(dead_code)] // idk why it says thet, netpulsed uses it a few times
 pub(crate) fn confirm(message: &str) -> bool {
     // Print prompt and flush to ensure it's displayed before reading input
     print!("{} y/N: ", message);
@@ -78,6 +79,7 @@ pub(crate) fn confirm(message: &str) -> bool {
     matches!(input.as_str(), "y" | "yes")
 }
 
+#[allow(dead_code)] // idk why it says thet, netpulsed uses it a few times
 pub(crate) fn exec_cmd_for_user(cmd: &mut Command) {
     let out = match cmd.output() {
         Err(e) => {
