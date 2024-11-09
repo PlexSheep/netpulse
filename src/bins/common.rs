@@ -1,5 +1,4 @@
 use getopts::Options;
-use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
 #[allow(dead_code)] // idk why it says thet, netpulsed uses it a few times
