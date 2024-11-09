@@ -218,7 +218,7 @@ impl CheckType {
     /// privileges (CAP_NET_RAW) which are lost when the daemon drops privileges, and DNS is not
     /// implemented.
     pub const fn default_enabled() -> &'static [Self] {
-        &[Self::Http]
+        &[Self::Http, Self::IcmpV4, Self::IcmpV6]
     }
 }
 
