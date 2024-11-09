@@ -99,10 +99,8 @@ pub enum CheckType {
     Dns,
     /// HTTP/HTTPS connectivity check
     Http,
-    /// ICMP ping using IPv4
-    IcmpV4,
-    /// ICMP ping using IPv6
-    IcmpV6,
+    /// ICMP ping (Echo)
+    Icmp,
     /// Unknown or invalid check type
     Unknown,
 }
@@ -157,11 +155,11 @@ impl CheckType {
             }
             #[cfg(not(feature = "http"))]
             Self::Http => {
-                panic!("Trying to make a http check, but the http feature is not enabled")
+                compile_error!("Trying to make a http check, but the http feature is not enabled")
             }
 
             #[cfg(feature = "ping")]
-            Self::IcmpV4 => {
+            Self::Icmp => {
                 check.add_flag(CheckFlag::TypeIcmp);
                 match crate::checks::just_fucking_ping(remote) {
                     Err(err) => {
@@ -175,24 +173,7 @@ impl CheckType {
             }
             #[cfg(not(feature = "ping"))]
             Self::IcmpV4 => {
-                panic!("Trying to make a ICMPv4 check, but the ping feature is not enabled")
-            }
-            #[cfg(feature = "ping")]
-            Self::IcmpV6 => {
-                check.add_flag(CheckFlag::TypeIcmp);
-                match crate::checks::just_fucking_ping(remote) {
-                    Err(err) => {
-                        error!("error while performing an ICMPv6 check: {err}")
-                    }
-                    Ok(lat) => {
-                        check.add_flag(CheckFlag::Success);
-                        check.latency = Some(lat);
-                    }
-                }
-            }
-            #[cfg(not(feature = "ping"))]
-            Self::IcmpV6 => {
-                panic!("Trying to make a ICMPv6 check, but the ping feature is not enabled")
+                compile_error!("Trying to make a ICMPv4 check, but the ping feature is not enabled")
             }
             Self::Unknown => {
                 panic!("tried to make an Unknown check");
@@ -209,7 +190,7 @@ impl CheckType {
     ///
     /// Used for iterating over available check types, e.g., during analysis.
     pub const fn all() -> &'static [Self] {
-        &[Self::Dns, Self::Http, Self::IcmpV4, Self::IcmpV6]
+        &[Self::Dns, Self::Http, Self::Icmp]
     }
 
     /// Returns a slice of check types enabled by default.
@@ -218,7 +199,7 @@ impl CheckType {
     /// privileges (CAP_NET_RAW) which are lost when the daemon drops privileges, and DNS is not
     /// implemented.
     pub const fn default_enabled() -> &'static [Self] {
-        &[Self::Http, Self::IcmpV4, Self::IcmpV6]
+        &[Self::Http, Self::Icmp]
     }
 }
 
@@ -230,8 +211,7 @@ impl Display for CheckType {
             match self {
                 Self::Dns => "DNS",
                 Self::Http => "HTTP(S)",
-                Self::IcmpV4 => "ICMPv4",
-                Self::IcmpV6 => "ICMPv6",
+                Self::Icmp => "ICMP",
                 Self::Unknown => "Unknown",
             }
         )
@@ -370,11 +350,7 @@ impl Check {
         } else if self.flags.contains(CheckFlag::TypeDns) {
             CheckType::Dns
         } else if self.flags.contains(CheckFlag::TypeIcmp) {
-            match self.ip_type()? {
-                CheckFlag::IPv4 => CheckType::IcmpV4,
-                CheckFlag::IPv6 => CheckType::IcmpV6,
-                _ => unreachable!(),
-            }
+            CheckType::Icmp
         } else {
             CheckType::Unknown
         })
