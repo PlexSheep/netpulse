@@ -114,7 +114,7 @@ impl Display for Outage<'_> {
 /// # Errors
 ///
 /// Returns [AnalysisError] if string formatting fails.
-pub fn display_group(group: &[&Check], f: &mut String) -> Result<(), AnalysisError> {
+pub fn display_group(group: &[&Check], f: &mut String) -> Result<(), std::fmt::Error> {
     if group.is_empty() {
         writeln!(f, "\t<Empty>")?;
         return Ok(());

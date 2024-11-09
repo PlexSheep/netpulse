@@ -153,6 +153,13 @@ pub enum DaemonError {
         #[from]
         source: std::io::Error,
     },
+    /// Failed to format analysis output.
+    #[error("Text Formatting error: {source}")]
+    Fmt {
+        /// Underlying error
+        #[from]
+        source: std::fmt::Error,
+    },
 }
 
 /// Errors that can occur during analysis and report generation.

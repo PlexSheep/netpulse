@@ -474,7 +474,14 @@ impl Store {
     ///
     /// Only HTTP checks are done for now, as ICMP needs `CAP_NET_RAW` and DNS is not yet
     /// implemented.
-    pub fn make_checks(&mut self) {
+    pub fn make_checks(&mut self) -> Vec<&Check> {
+        let last_old = self
+            .checks
+            .iter()
+            .enumerate()
+            .last()
+            .map(|a| a.0)
+            .unwrap_or(0);
         for target in TARGETS_HTTP {
             self.checks.push(
                 CheckType::Http.make(
@@ -483,5 +490,12 @@ impl Store {
                 ),
             );
         }
+
+        let mut made_checks = Vec::new();
+        for new_check in self.checks.iter().skip(last_old) {
+            made_checks.push(new_check);
+        }
+
+        made_checks
     }
 }

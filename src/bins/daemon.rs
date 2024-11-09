@@ -21,6 +21,7 @@
 use std::sync::atomic::AtomicBool;
 use std::time::{self, Duration, UNIX_EPOCH};
 
+use netpulse::analyze::display_group;
 use netpulse::errors::DaemonError;
 use netpulse::DAEMON_PID_FILE;
 use nix::sys::signal::{self, SigHandler, Signal};
@@ -90,7 +91,9 @@ pub(crate) fn daemon() {
 fn wakeup(store: &mut Store) -> Result<(), DaemonError> {
     println!("waking up!");
 
-    store.make_checks();
+    let mut buf = String::new();
+    display_group(&store.make_checks(), &mut buf)?;
+    println!("{buf}");
 
     if let Err(err) = store.save() {
         eprintln!("error while saving to file: {err:}");
