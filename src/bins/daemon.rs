@@ -21,8 +21,8 @@
 use std::sync::atomic::AtomicBool;
 use std::time::{self, Duration, UNIX_EPOCH};
 
-use netpulse::analyze::display_group;
 use netpulse::errors::RunError;
+use netpulse::records::display_group;
 use netpulse::DAEMON_PID_FILE;
 use nix::sys::signal::{self, SigHandler, Signal};
 

@@ -106,33 +106,6 @@ impl Display for Outage<'_> {
     }
 }
 
-/// Display a formatted list of checks.
-///
-/// Each check is formatted with:
-/// - Index number
-/// - Indented check details
-/// - Nested line breaks preserved
-///
-/// # Arguments
-///
-/// * `group` - Slice of check references to format
-/// * `f` - String buffer to write formatted output
-///
-/// # Errors
-///
-/// Returns [AnalysisError] if string formatting fails.
-pub fn display_group(group: &[&Check], f: &mut String) -> Result<(), std::fmt::Error> {
-    if group.is_empty() {
-        writeln!(f, "\t<Empty>")?;
-        return Ok(());
-    }
-    for (cidx, check) in group.iter().enumerate() {
-        writeln!(f, "{cidx}:")?;
-        writeln!(f, "\t{}", check.to_string().replace("\n", "\n\t"))?;
-    }
-    Ok(())
-}
-
 /// Generate a comprehensive analysis report for the given store.
 ///
 /// The report includes:

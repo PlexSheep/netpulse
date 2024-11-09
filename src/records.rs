@@ -36,7 +36,7 @@
 //! }
 //! ```
 
-use std::fmt::Display;
+use std::fmt::{Display, Write};
 use std::hash::{Hash, Hasher};
 use std::net::IpAddr;
 use std::time::{self};
@@ -442,21 +442,47 @@ impl Check {
 
 impl Display for Check {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(
+        write!(
             f,
-            "Time: {}\nType: {}\nOk: {}\nTarget: {}",
+            "Time: {}\nType: {}\nOk: {}\nTarget: {}\nLatency: {}\nHash: {}",
             humantime::format_rfc3339_seconds(self.timestamp_parsed()),
             self.calc_type().unwrap_or(CheckType::Unknown),
             self.is_success(),
-            self.target
-        )?;
-        write!(f, "Latency: {}", {
+            self.target,
             match self.latency() {
                 Some(l) => format!("{l} ms"),
                 None => "(Error)".to_string(),
-            }
-        })
+            },
+            self.get_hash()
+        )
     }
+}
+
+/// Display a formatted list of checks.
+///
+/// Each check is formatted with:
+/// - Index number
+/// - Indented check details
+/// - Nested line breaks preserved
+///
+/// # Arguments
+///
+/// * `group` - Slice of check references to format
+/// * `f` - String buffer to write formatted output
+///
+/// # Errors
+///
+/// Returns [AnalysisError] if string formatting fails.
+pub fn display_group(group: &[&Check], f: &mut String) -> Result<(), std::fmt::Error> {
+    if group.is_empty() {
+        writeln!(f, "\t<Empty>")?;
+        return Ok(());
+    }
+    for (cidx, check) in group.iter().enumerate() {
+        writeln!(f, "{cidx}:")?;
+        writeln!(f, "\t{}", check.to_string().replace("\n", "\n\t"))?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
