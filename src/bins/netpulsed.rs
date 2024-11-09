@@ -118,7 +118,10 @@ fn setup_systemd() -> Result<(), DaemonError> {
     fs::set_permissions(service_path, perms)?;
 
     // copying netpulsed to /usr/local/bin/
-    fs::copy(std::env::current_exe()?, "/usr/local/bin/")?;
+    fs::copy(
+        std::env::current_exe()?,
+        format!("/usr/local/bin/{}", env!("CARGO_BIN_NAME")),
+    )?;
 
     println!("Created the netpulsed.service in '{SYSTEMD_SERVICE_PATH}'.");
     println!("To update the reload the daemon definitions, run the following as root:");
