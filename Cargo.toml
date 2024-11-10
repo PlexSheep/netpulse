@@ -44,3 +44,6 @@ required-features = ["executable"]
 name = "netpulsed"
 path = "src/bins/netpulsed.rs"
 required-features = ["executable"]
+
+[package.metadata."docs.rs"]
+all-features = true

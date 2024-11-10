@@ -26,7 +26,7 @@ use std::str::FromStr;
 
 use deepsize::DeepSizeOf;
 use serde::{Deserialize, Serialize};
-use tracing::{error, warn};
+use tracing::{error, trace, warn};
 
 use crate::errors::StoreError;
 use crate::records::{Check, CheckType, TARGETS};
@@ -499,7 +499,8 @@ impl Store {
     /// Iterates through [CheckType::default_enabled] and [TARGETS] and creates a [Checks](Check).
     pub fn primitive_make_checks(buf: &mut Vec<Check>) {
         for check_type in CheckType::default_enabled() {
-            if [CheckType::IcmpV4, CheckType::IcmpV6].contains(check_type) && !has_cap_net_raw() {
+            trace!("check type: {check_type}");
+            if *check_type == CheckType::Icmp && !has_cap_net_raw() {
                 warn!("Does not have CAP_NET_RAW, can't use {check_type}, skipping");
                 continue;
             }

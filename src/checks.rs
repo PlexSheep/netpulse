@@ -19,6 +19,7 @@
 //! # Example
 //!
 //! ```rust
+//! # #[cfg(feature = "http")] {// only works with that feature
 //! use netpulse::checks;
 //! use std::net::IpAddr;
 //!
@@ -28,6 +29,7 @@
 //! if let Ok(latency) = checks::check_http(addr) {
 //!     println!("HTTP latency: {}ms", latency);
 //! }
+//! # }
 //! ```
 use std::net::IpAddr;
 

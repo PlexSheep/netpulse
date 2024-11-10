@@ -13,13 +13,10 @@
 
 use getopts::Options;
 use netpulse::analyze;
+use netpulse::common::{init_logging, print_usage};
 use netpulse::errors::RunError;
 use netpulse::records::{display_group, Check};
 use netpulse::store::Store;
-
-use self::common::{init_logging, print_usage, print_version};
-
-mod common;
 
 fn main() {
     init_logging(tracing::Level::INFO);
@@ -105,4 +102,9 @@ fn analysis() {
         }
         Ok(report) => println!("{report}"),
     }
+}
+
+fn print_version() -> ! {
+    println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
+    std::process::exit(0)
 }

@@ -20,7 +20,6 @@
 //! - Info log: `/var/log/netpulse/info.log`
 //! - Error log: `/var/log/netpulse/error.log`
 
-use core::panic;
 use std::fs::{self, File};
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
@@ -30,22 +29,19 @@ use std::sync::atomic::AtomicBool;
 
 use daemonize::Daemonize;
 use getopts::Options;
+use netpulse::common::{
+    confirm, exec_cmd_for_user, getpid, getpid_running, init_logging, print_usage, root_guard,
+};
 use netpulse::errors::RunError;
 use netpulse::store::Store;
 use netpulse::{DAEMON_LOG_ERR, DAEMON_LOG_INF, DAEMON_PID_FILE, DAEMON_USER};
 use nix::errno::Errno;
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
+use tracing::{error, info};
 
-mod common;
 mod daemon;
 use daemon::daemon;
-
-use common::{
-    confirm, exec_cmd_for_user, getpid, init_logging, netpulsed_is_running, print_usage,
-    print_version, root_guard,
-};
-use tracing::{error, info};
 
 const SERVICE_FILE: &str = include_str!("../../data/netpulsed.service");
 const SYSTEMD_SERVICE_PATH: &str = "/etc/systemd/system/netpulsed.service";
@@ -114,7 +110,7 @@ fn main() -> Result<(), RunError> {
 }
 
 fn setup_systemd() -> Result<(), RunError> {
-    let mut is_running: bool = netpulsed_is_running().is_some();
+    let mut is_running: bool = getpid_running().is_some();
     info!("netpulsed is running: {is_running}");
     let mut stop_requested = false;
 
@@ -129,14 +125,18 @@ fn setup_systemd() -> Result<(), RunError> {
                 stop_requested = true;
                 continue;
             }
-            exec_cmd_for_user(Command::new("systemctl").arg("stop netpulsed.service"));
+            exec_cmd_for_user(
+                Command::new("systemctl")
+                    .arg("stop")
+                    .arg("netpulsed.service"),
+            );
             stop_requested = true;
             println!(
                 "waiting until netpulsed is no longer running (pid: {:?})",
                 getpid()
             );
         }
-        is_running = netpulsed_is_running().is_some();
+        is_running = getpid_running().is_some();
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
 
@@ -218,7 +218,7 @@ fn pid_runs(pid: i32) -> bool {
 fn endd() {
     root_guard();
     let mut terminated = false;
-    let pid: Pid = match getpid() {
+    let pid: Pid = match getpid_running() {
         None => {
             println!("netpulsed is not running");
             return;
@@ -341,4 +341,8 @@ fn startd() {
             }
         }
     }
+}
+fn print_version() -> ! {
+    println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
+    std::process::exit(0)
 }
