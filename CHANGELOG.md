@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/PlexSheep/netpulse/compare/v0.4.1...v0.5.0)
+
+### 📚 Documentation
+
+- *(api)* Fix examples for no default options - ([1db6d5b](https://github.com/PlexSheep/netpulse/commit/1db6d5be018acca636e0f8fb4997bc0b6dab0850))
+
+### ⚙️ Miscellaneous Tasks
+
+- Docs.rs should show all features - ([14c781f](https://github.com/PlexSheep/netpulse/commit/14c781f6d32f493808ff1ef26932e592fa5fad30))
+- Test without default features - ([cd33873](https://github.com/PlexSheep/netpulse/commit/cd33873c5215b2c882ff3f5860acef2d3fa49cc1))
+
+
 ## [0.4.1](https://github.com/PlexSheep/netpulse/compare/v0.4.0...v0.4.1)
 
 ### ⛰️ Features
