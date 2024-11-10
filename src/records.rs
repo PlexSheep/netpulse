@@ -25,6 +25,7 @@
 //! # Example
 //!
 //! ```rust
+//! # #[cfg(feature = "http")] {// only works with that feature
 //! use netpulse::records::{CheckType, Check};
 //!
 //! // Create new HTTP check
@@ -34,6 +35,7 @@
 //! if check.is_success() {
 //!     println!("Latency: {}ms", check.latency().unwrap());
 //! }
+//! # }
 //! ```
 
 use std::fmt::{Display, Write};
