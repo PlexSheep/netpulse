@@ -354,7 +354,7 @@ fn gereric_ip_analyze(
                 error!("check '{}' has bad flags: {err}", c.get_hash());
                 return false;
             }
-        } == CheckFlag::IPv4
+        } == ip_check_flag
         )
         .collect();
     let successes: Vec<&Check> = all.clone().into_iter().filter(|c| c.is_success()).collect();
