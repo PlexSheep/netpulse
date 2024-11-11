@@ -50,9 +50,14 @@ use tracing::error;
 
 use crate::errors::StoreError;
 
+/// Type of [IpAddr]
+///
+/// This enum can be used to work with just abstract IP versions, not whole [Ip Addresses](IpAddr).
 #[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Clone, Copy, DeepSizeOf)]
 pub enum IpType {
+    /// Type is IPv4
     V4,
+    /// Type is IPv6
     V6,
 }
 
@@ -360,44 +365,11 @@ impl Check {
 
     /// Determines whether the check used IPv4 or IPv6.
     ///
-    /// Examines the check's flags to determine which IP version was used.
-    /// A check should have either IPv4 or IPv6 flag set, but not both.
+    /// Examines the [check's](Check) [target](Check::target) to determine which IP version was used.
     ///
     /// # Returns
     ///
-    /// * `CheckFlag::IPv4` - Check used IPv4
-    /// * `CheckFlag::IPv6` - Check used IPv6
-    ///
-    /// # Errors
-    ///
-    /// * Returns [`StoreError::AmbiguousFlags`] if both IPv4 and IPv6 flags are set,
-    ///   as this represents an invalid state that should never occur.
-    ///
-    /// * Returns [`StoreError::MissingFlag`] if neither IPv4 or IPv6 flags are set,
-    ///   as this represents an invalid state that should never occur.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use netpulse::records::{Check, CheckFlag};
-    /// use flagset::FlagSet;
-    ///
-    /// let mut check = Check::new(std::time::SystemTime::now(), FlagSet::default(), None, "1.1.1.1".parse().unwrap());
-    ///
-    /// assert!(check.ip_type().is_err()); // we haven't set the IP flags! We need to set either IPv4 or IPv6
-    ///
-    /// check.add_flag(CheckFlag::IPv4);
-    ///
-    /// match check.ip_type().unwrap() {
-    ///     CheckFlag::IPv4 => println!("IPv4 check"),
-    ///     CheckFlag::IPv6 => println!("IPv6 check"),
-    ///     _ => unreachable!()
-    /// }
-    ///
-    /// check.add_flag(CheckFlag::IPv6); // But what if we now also add IPv6?
-    ///
-    /// assert!(check.ip_type().is_err()); // Oh no! Now it's ambiguos
-    /// ```
+    /// The [IpType] that was used
     pub fn ip_type(&self) -> IpType {
         IpType::from(self.target)
     }
