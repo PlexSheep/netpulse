@@ -30,15 +30,13 @@
 //! - Store metadata (hashes, versions)
 
 use deepsize::DeepSizeOf;
-use tracing::error;
 
 use crate::errors::AnalysisError;
-use crate::records::{Check, CheckFlag, CheckType, IpType};
+use crate::records::{Check, CheckType, IpType};
 use crate::store::Store;
 
 use std::fmt::{Display, Write};
 use std::hash::Hash;
-use std::net::IpAddr;
 use std::os::unix::fs::MetadataExt;
 
 /// Represents a period of consecutive failed checks.
