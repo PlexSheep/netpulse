@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.5.1](https://github.com/PlexSheep/netpulse/compare/v0.5.0...v0.5.1)
+
+### 🐛 Bug Fixes
+
+- *(analyze)* Ip analyze was always done with ipv4 - ([bff96c6](https://github.com/PlexSheep/netpulse/commit/bff96c6a403390ce94e118937b87f8d8acf5f3a3))
+
+
 ## [0.5.0](https://github.com/PlexSheep/netpulse/compare/v0.4.1...v0.5.0)
 
 ### 📚 Documentation
