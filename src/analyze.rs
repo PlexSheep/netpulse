@@ -30,10 +30,9 @@
 //! - Store metadata (hashes, versions)
 
 use deepsize::DeepSizeOf;
-use tracing::error;
 
 use crate::errors::AnalysisError;
-use crate::records::{Check, CheckFlag, CheckType};
+use crate::records::{Check, CheckType, IpType};
 use crate::store::Store;
 
 use std::fmt::{Display, Write};
@@ -139,9 +138,9 @@ pub fn analyze(store: &Store) -> Result<String, AnalysisError> {
     barrier(&mut f, "ICMP")?;
     generic_type_analyze(store, &mut f, CheckType::Icmp)?;
     barrier(&mut f, "IPv4")?;
-    gereric_ip_analyze(store, &mut f, CheckFlag::IPv4)?;
+    gereric_ip_analyze(store, &mut f, IpType::V4)?;
     barrier(&mut f, "IPv6")?;
-    gereric_ip_analyze(store, &mut f, CheckFlag::IPv6)?;
+    gereric_ip_analyze(store, &mut f, IpType::V6)?;
     barrier(&mut f, "Outages")?;
     outages(store, &mut f)?;
     barrier(&mut f, "Store Metadata")?;
@@ -337,25 +336,11 @@ fn generalized(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
 /// Prints warning to stderr if:
 /// - Check has both IPv4 and IPv6 flags set
 /// - Check has no IP version flags set
-fn gereric_ip_analyze(
-    store: &Store,
-    f: &mut String,
-    ip_check_flag: CheckFlag,
-) -> Result<(), AnalysisError> {
-    if ![CheckFlag::IPv4, CheckFlag::IPv6].contains(&ip_check_flag) {
-        panic!("check flag is not IPv4 or IPv6: {ip_check_flag:?}");
-    }
+fn gereric_ip_analyze(store: &Store, f: &mut String, ip_type: IpType) -> Result<(), AnalysisError> {
     let all: Vec<&Check> = store
         .checks()
         .iter()
-        .filter(|c| match c.ip_type() {
-            Ok(ip) => ip,
-            Err(err) => {
-                error!("check '{}' has bad flags: {err}", c.get_hash());
-                return false;
-            }
-        } == ip_check_flag
-        )
+        .filter(|c| c.ip_type() == ip_type)
         .collect();
     let successes: Vec<&Check> = all.clone().into_iter().filter(|c| c.is_success()).collect();
     analyze_check_type_set(f, &all, &successes)?;
