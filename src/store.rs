@@ -109,12 +109,12 @@ impl From<Version> for u8 {
 
 impl Version {
     /// Current version of the store format
-    pub const CURRENT: Self = Version::new(0);
+    pub const CURRENT: Self = Version::new(1);
 
     /// List of supported store format versions
     ///
     /// Used for compatibility checking when loading stores.
-    pub const SUPPROTED: &[Self] = &[Version::new(0)];
+    pub const SUPPROTED: &[Self] = &[Version::new(0), Version::new(1)];
 
     /// Creates a new Version with the given raw version number
     pub(crate) const fn new(raw: u8) -> Self {

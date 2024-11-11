@@ -50,6 +50,12 @@ use tracing::error;
 
 use crate::errors::StoreError;
 
+#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Clone, Copy, DeepSizeOf)]
+pub enum IpType {
+    V4,
+    V6,
+}
+
 /// List of target IP addresses used for connectivity checks.
 ///
 /// # Warning
@@ -63,8 +69,7 @@ flags! {
     ///
     /// Uses a bitflag system to efficiently store multiple properties:
     /// - Result flags (bits 0-7): Success, failure reasons
-    /// - Protocol flags (bits 8-11): IPv4/IPv6
-    /// - Type flags (bits 12-15): Check type (HTTP, ICMP, DNS)
+    /// - Type flags (bits 8-15): Check type (HTTP, ICMP, DNS)
     #[derive(Hash, Deserialize, Serialize)]
     pub enum CheckFlag: u16 {
         /// If this is not set, the check will be considered failed
@@ -73,11 +78,6 @@ flags! {
         Timeout     =   0b0000_0000_0000_0010,
         /// Failure because the destination is unreachable
         Unreachable =   0b0000_0000_0000_0100,
-
-        /// The Check used IPv4
-        IPv4        =   0b0000_0001_0000_0000,
-        /// The Check used IPv6
-        IPv6        =   0b0000_0010_0000_0000,
 
         /// The Check used HTTP/HTTPS
         TypeHTTP    =   0b0001_0000_0000_0000,
@@ -135,11 +135,6 @@ impl CheckType {
             None,
             remote,
         );
-
-        match remote {
-            IpAddr::V4(_) => check.add_flag(CheckFlag::IPv4),
-            IpAddr::V6(_) => check.add_flag(CheckFlag::IPv6),
-        }
 
         match self {
             #[cfg(feature = "http")]
@@ -403,19 +398,8 @@ impl Check {
     ///
     /// assert!(check.ip_type().is_err()); // Oh no! Now it's ambiguos
     /// ```
-    pub fn ip_type(&self) -> Result<CheckFlag, StoreError> {
-        let flags = self.flags();
-        if flags.contains(CheckFlag::IPv4) && flags.contains(CheckFlag::IPv6) {
-            Err(StoreError::AmbiguousFlags(
-                CheckFlag::IPv4 | CheckFlag::IPv6,
-            ))
-        } else if flags.contains(CheckFlag::IPv4) {
-            Ok(CheckFlag::IPv4)
-        } else if flags.contains(CheckFlag::IPv6) {
-            Ok(CheckFlag::IPv6)
-        } else {
-            Err(StoreError::MissingFlag(CheckFlag::IPv4 | CheckFlag::IPv6))
-        }
+    pub fn ip_type(&self) -> IpType {
+        IpType::from(self.target)
     }
 }
 
@@ -434,6 +418,15 @@ impl Display for Check {
             },
             self.get_hash()
         )
+    }
+}
+
+impl From<IpAddr> for IpType {
+    fn from(value: IpAddr) -> Self {
+        match value {
+            IpAddr::V4(_) => Self::V4,
+            IpAddr::V6(_) => Self::V6,
+        }
     }
 }
 
