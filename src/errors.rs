@@ -94,6 +94,10 @@ pub enum StoreError {
     /// that one of these should be set.
     #[error("Check is missing at least one of these flags: {0:?}")]
     MissingFlag(FlagSet<CheckFlag>),
+    /// Occurs when trying to convert an arbitrary [u8] to a [Version](crate::store::Version) that
+    /// is not defined. Only known [Versions][crate::store::Version] are valid.
+    #[error("Tried to load a store version that does not exist: {0}")]
+    BadStoreVersion(u8),
 }
 
 /// Errors that can occur during network checks.
