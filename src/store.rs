@@ -60,6 +60,9 @@ pub const ZSTD_COMPRESSION_LEVEL: i32 = 4;
 /// Primarily intended for development and testing.
 pub const ENV_PATH: &str = "NETPULSE_STORE_PATH";
 
+pub const DEFAULT_PERIOD: i64 = 60;
+pub const ENV_PERIOD: &str = "NETPULSE_PERIOD";
+
 /// Version information for the store format.
 ///
 /// The [Store] definition might change over time as netpulse is developed. To work with older or
@@ -478,9 +481,14 @@ impl Store {
     /// Returns the check interval in seconds.
     ///
     /// This determines how frequently the daemon performs checks.
-    /// Currently fixed at 60 seconds.
-    pub const fn period_seconds(&self) -> i64 {
-        60
+    /// Default is [DEFAULT_PERIOD], but this value can be overridden by setting [ENV_PERIOD] as
+    /// environment variable.
+    pub fn period_seconds(&self) -> i64 {
+        if let Ok(v) = std::env::var(ENV_PERIOD) {
+            v.parse().unwrap_or(DEFAULT_PERIOD)
+        } else {
+            DEFAULT_PERIOD
+        }
     }
 
     /// Generates a cryptographic hash of the entire [Store].
