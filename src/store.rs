@@ -60,7 +60,12 @@ pub const ZSTD_COMPRESSION_LEVEL: i32 = 4;
 /// Primarily intended for development and testing.
 pub const ENV_PATH: &str = "NETPULSE_STORE_PATH";
 
+/// How long to wait between running workloads for the daemon
 pub const DEFAULT_PERIOD: i64 = 60;
+/// Environment variable name for the time period after which the daemon wakes up.
+///
+/// If set, its value will be used instead of [DEFAULT_PERIOD].
+/// Primarily intended for development and testing.
 pub const ENV_PERIOD: &str = "NETPULSE_PERIOD";
 
 /// Version information for the store format.
@@ -630,36 +635,39 @@ impl Store {
         &mut self.checks
     }
 
-    /// Reads only the version field from a store file without loading the entire store.
+    /// Reads only the [Version] from a store file without loading the entire [Store].
     ///
     /// This function efficiently checks the store version by:
-    /// 1. Opening the store file
+    /// 1. Opening the store file (decompressing it if enabled)
     /// 2. Deserializing only the version field
     /// 3. Skipping the rest of the data
     ///
     /// This is more efficient than loading the full store when only version
-    /// information is needed, such as during version compatibility checks.
+    /// information is needed, such as during version compatibility checks. It may also keep
+    /// working if the format/version of the store is incompatible with what this version of
+    /// netpulse uses.
     ///
     /// # Feature Flags
     ///
     /// If the "compression" feature is enabled, this function will decompress
-    /// the store file using zstd before reading the version.
+    /// the store file using [zstd] before reading the version.
     ///
     /// # Errors
     ///
     /// Returns [StoreError] if:
     /// - Store file doesn't exist ([`StoreError::DoesNotExist`])
     /// - Store file is corrupt or truncated ([`StoreError::Load`])
-    /// - File permissions prevent reading
-    /// - Decompression fails (with "compression" feature)
+    /// - File permissions prevent reading ([`StoreError::Io`])
+    /// - Decompression fails (with "compression" feature) ([`StoreError::Io`])
     ///
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use netpulse::Store;
+    /// use netpulse::store::Store;
+    /// use netpulse::errors::StoreError;
     ///
     /// match Store::peek_file_version() {
-    ///     Ok(version) => println!("Store version: {}", version),
+    ///     Ok(version) => println!("Store version in file: {}", version),
     ///     Err(StoreError::DoesNotExist) => println!("No store file found"),
     ///     Err(e) => eprintln!("Error reading store version: {}", e),
     /// }

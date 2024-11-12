@@ -39,7 +39,7 @@
 //! ```
 
 use std::fmt::{Display, Write};
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::net::IpAddr;
 
 use chrono::{DateTime, Local, TimeZone, Utc};
