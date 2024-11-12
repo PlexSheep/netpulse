@@ -286,6 +286,8 @@ pub fn getpid() -> Option<i32> {
 /// println!("it is now: {}", fmt_timestamp(datetime));
 /// let datetime: chrono::DateTime<chrono::Local> = chrono::Local::now();
 /// println!("it is now: {}", fmt_timestamp(datetime));
+/// let datetime: chrono::DateTime<chrono::Utc> = chrono::Utc::now();
+/// println!("it is now: {}", fmt_timestamp(datetime));
 /// ```
 pub fn fmt_timestamp(timestamp: impl Into<DateTime<Local>>) -> String {
     let a: chrono::DateTime<chrono::Local> = timestamp.into();

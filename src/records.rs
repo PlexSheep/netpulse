@@ -136,12 +136,7 @@ impl CheckType {
     /// - If check type is `Unknown`
     /// - If check type is `Dns` (not yet implemented)
     pub fn make(&self, remote: IpAddr) -> Check {
-        let mut check = Check::new(
-            std::time::SystemTime::now(),
-            FlagSet::default(),
-            None,
-            remote,
-        );
+        let mut check = Check::new(Utc::now(), FlagSet::default(), None, remote);
 
         match self {
             #[cfg(feature = "http")]
@@ -280,16 +275,14 @@ impl Check {
     ///
     /// Panics if timestamp is before UNIX_EPOCH.
     pub fn new(
-        time: time::SystemTime,
+        time: impl Into<DateTime<Utc>>,
         flags: impl Into<FlagSet<CheckFlag>>,
         latency: Option<u16>,
         target: IpAddr,
     ) -> Self {
+        let t: DateTime<Utc> = time.into();
         Check {
-            timestamp: time
-                .duration_since(time::UNIX_EPOCH)
-                .expect("timestamp of check was before UNIX_EPOCH (1970-01-01 00:00:00 UTC)")
-                .as_secs(),
+            timestamp: t.timestamp(),
             flags: flags.into(),
             latency,
             target,

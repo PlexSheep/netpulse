@@ -59,14 +59,7 @@ pub(crate) fn daemon() {
             info!("restarting the daemon");
             store = load_store();
         }
-        let time = time::SystemTime::now();
-        if time
-            .duration_since(UNIX_EPOCH)
-            .expect("time is before the UNIX_EPOCH")
-            .as_secs()
-            % store.period_seconds()
-            == 0
-        {
+        if chrono::Utc::now().timestamp() % store.period_seconds() == 0 {
             if let Err(err) = wakeup(&mut store) {
                 error!("error in the wakeup turn: {err}");
             }
