@@ -29,6 +29,7 @@
 //! - Outage analysis
 //! - Store metadata (hashes, versions)
 
+use chrono::{DateTime, Local};
 use deepsize::DeepSizeOf;
 
 use crate::errors::AnalysisError;
@@ -38,6 +39,16 @@ use crate::store::Store;
 use std::fmt::{Display, Write};
 use std::hash::Hash;
 use std::os::unix::fs::MetadataExt;
+
+/// Formatting rules for timestamps that are easily readable by humans.
+///
+/// ```rust
+/// use chrono::{DateTime, Local};
+/// # use netpulse::analyze::TIME_FORMAT_HUMANS;
+/// let datetime: DateTime<Local> = Local::now();
+/// println!("it is now: {}", datetime.format(TIME_FORMAT_HUMANS));
+/// ```
+pub const TIME_FORMAT_HUMANS: &str = "%Y-%m-%d %H:%M:%S %Z";
 
 /// Represents a period of consecutive failed checks.
 ///
@@ -86,14 +97,14 @@ impl Display for Outage<'_> {
             writeln!(
                 f,
                 "From {} To {}",
-                humantime::format_rfc3339_seconds(self.start.timestamp_parsed()),
-                humantime::format_rfc3339_seconds(self.end.unwrap().timestamp_parsed())
+                fmt_timestamp(self.start.timestamp_parsed()),
+                fmt_timestamp(self.end.unwrap().timestamp_parsed())
             )?;
         } else {
             writeln!(
                 f,
                 "From {} STILL ONGOING",
-                humantime::format_rfc3339_seconds(self.start.timestamp_parsed()),
+                fmt_timestamp(self.start.timestamp_parsed()),
             )?;
         }
         writeln!(f, "Checks: {}", self.all.len())?;
@@ -147,6 +158,28 @@ pub fn analyze(store: &Store) -> Result<String, AnalysisError> {
     store_meta(store, &mut f)?;
 
     Ok(f)
+}
+
+/// Formats a [SystemTime](std::time::SystemTime) as an easily readable timestamp for humans.
+///
+/// Works with [`std::time::SystemTime`] and [`chrono::DateTime<Local>`].
+///
+/// # Examples
+///
+/// ```rust
+/// # use netpulse::analyze::fmt_timestamp;
+/// use std::time::SystemTime;
+/// use chrono;
+/// let datetime: SystemTime = SystemTime::now();
+/// println!("it is now: {}", fmt_timestamp(datetime));
+/// let datetime: chrono::DateTime<chrono::Local> = chrono::Local::now();
+/// println!("it is now: {}", fmt_timestamp(datetime));
+/// let datetime: chrono::DateTime<chrono::Utc> = chrono::Utc::now();
+/// println!("it is now: {}", fmt_timestamp(datetime));
+/// ```
+pub fn fmt_timestamp(timestamp: impl Into<DateTime<Local>>) -> String {
+    let a: chrono::DateTime<chrono::Local> = timestamp.into();
+    format!("{}", a.format(TIME_FORMAT_HUMANS))
 }
 
 /// Adds a section divider to the report with a title.
@@ -288,12 +321,12 @@ fn analyze_check_type_set(
     key_value_write(
         f,
         "first check at",
-        humantime::format_rfc3339_seconds(all.first().unwrap().timestamp_parsed()),
+        fmt_timestamp(all.first().unwrap().timestamp_parsed()),
     )?;
     key_value_write(
         f,
         "last check at",
-        humantime::format_rfc3339_seconds(all.last().unwrap().timestamp_parsed()),
+        fmt_timestamp(all.last().unwrap().timestamp_parsed()),
     )?;
     writeln!(f)?;
     Ok(())
@@ -374,11 +407,10 @@ fn store_meta(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     let store_size_mem = store.deep_size_of();
     let store_size_fs = std::fs::metadata(Store::path())?.size();
 
-    key_value_write(f, "Hash Datastructure", store.display_hash())?;
-    key_value_write(f, "Hash Store File", store.display_hash_of_file()?)?;
+    key_value_write(f, "Hash mem blake3", store.get_hash())?;
+    key_value_write(f, "Hash file sha256", store.get_hash_of_file()?)?;
     key_value_write(f, "Store Version (mem)", store.version())?;
-    // TODO: find a way to get the version just from file without deserializing it
-    key_value_write(f, "Store Version (file)", "<TODO>")?;
+    key_value_write(f, "Store Version (file)", Store::peek_file_version()?)?;
     key_value_write(f, "Store Size (mem)", store_size_mem)?;
     key_value_write(f, "Store Size (file)", store_size_fs)?;
     key_value_write(

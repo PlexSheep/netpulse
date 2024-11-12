@@ -13,12 +13,14 @@
 
 use getopts::Options;
 use netpulse::analyze;
-use netpulse::common::{init_logging, print_usage};
+use netpulse::common::{init_logging, print_usage, setup_panic_handler};
 use netpulse::errors::RunError;
 use netpulse::records::{display_group, Check};
 use netpulse::store::Store;
+use tracing::error;
 
 fn main() {
+    setup_panic_handler();
     init_logging(tracing::Level::INFO);
     let args: Vec<String> = std::env::args().collect();
     let program = &args[0];
@@ -28,6 +30,11 @@ fn main() {
     opts.optflag("V", "version", "print the version");
     opts.optflag("t", "test", "test run all checks");
     opts.optflag("d", "dump", "print out all checks");
+    opts.optflag(
+        "r",
+        "rewrite",
+        "load store and immediately save to rewrite the file",
+    );
     opts.optflag("f", "failed", "only consider failed checks for dumping");
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
@@ -50,7 +57,12 @@ fn main() {
         dump(failed_only);
     } else if matches.opt_present("test") {
         if let Err(e) = test_checks() {
-            eprintln!("{e}");
+            error!("{e}");
+            std::process::exit(1)
+        }
+    } else if matches.opt_present("rewrite") {
+        if let Err(e) = rewrite() {
+            error!("{e}");
             std::process::exit(1)
         }
     } else {
@@ -91,6 +103,12 @@ fn dump(failed_only: bool) {
         std::process::exit(1);
     }
     println!("{buf}")
+}
+
+fn rewrite() -> Result<(), RunError> {
+    let s = Store::load()?;
+    s.save()?;
+    Ok(())
 }
 
 fn analysis() {

@@ -17,7 +17,7 @@
 
 use std::fmt::Display;
 use std::fs::{self};
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::io::{ErrorKind, Write};
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
@@ -60,6 +60,14 @@ pub const ZSTD_COMPRESSION_LEVEL: i32 = 4;
 /// Primarily intended for development and testing.
 pub const ENV_PATH: &str = "NETPULSE_STORE_PATH";
 
+/// How long to wait between running workloads for the daemon
+pub const DEFAULT_PERIOD: i64 = 60;
+/// Environment variable name for the time period after which the daemon wakes up.
+///
+/// If set, its value will be used instead of [DEFAULT_PERIOD].
+/// Primarily intended for development and testing.
+pub const ENV_PERIOD: &str = "NETPULSE_PERIOD";
+
 /// Version information for the store format.
 ///
 /// The [Store] definition might change over time as netpulse is developed. To work with older or
@@ -70,10 +78,25 @@ pub const ENV_PATH: &str = "NETPULSE_STORE_PATH";
 /// supported by this version of Netpulse
 ///
 /// This only describes the version of the [Store], not of [Netpulse](crate) itself.
-#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Copy, Clone, DeepSizeOf)]
-pub struct Version {
-    /// Raw version number as u8
-    inner: u8,
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Copy,
+    Clone,
+    DeepSizeOf,
+    PartialOrd,
+    Ord,
+    serde_repr::Serialize_repr,
+    serde_repr::Deserialize_repr,
+)]
+#[allow(missing_docs)] // It's just versions man
+#[repr(u8)]
+pub enum Version {
+    V0 = 0,
+    V1 = 1,
+    V2 = 2,
 }
 
 /// Main storage type for netpulse check results.
@@ -87,38 +110,76 @@ pub struct Store {
     version: Version,
     /// Collection of all recorded checks
     checks: Vec<Check>,
+    // if true, this store will never be saved
+    #[serde(skip)]
+    readonly: bool,
 }
 
 impl Display for Version {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.inner)
+        write!(f, "{}", self.raw())
     }
 }
 
-impl From<u8> for Version {
-    fn from(value: u8) -> Self {
-        Self::new(value)
+impl TryFrom<u8> for Version {
+    type Error = StoreError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Ok(match value {
+            0 => Self::V0,
+            1 => Self::V1,
+            2 => Self::V2,
+            _ => return Err(StoreError::BadStoreVersion(value)),
+        })
     }
 }
 
 impl From<Version> for u8 {
     fn from(value: Version) -> Self {
-        value.inner
+        value.raw()
     }
 }
 
 impl Version {
     /// Current version of the store format
-    pub const CURRENT: Self = Version::new(1);
+    pub const CURRENT: Self = Self::V2;
 
     /// List of supported store format versions
     ///
     /// Used for compatibility checking when loading stores.
-    pub const SUPPROTED: &[Self] = &[Version::new(0), Version::new(1)];
+    pub const SUPPROTED: &[Self] = &[Self::V0, Self::V1, Self::V2];
 
-    /// Creates a new Version with the given raw version number
-    pub(crate) const fn new(raw: u8) -> Self {
-        Self { inner: raw }
+    /// Gets the raw [Version] as [u8]
+    pub const fn raw(&self) -> u8 {
+        *self as u8
+    }
+
+    /// Returns the next sequential [Version], if one exists.
+    ///
+    /// Used for version migration logic to determine the next version to upgrade to.
+    ///
+    /// # Returns
+    ///
+    /// * `Some(Version)` - The next version in sequence:
+    ///   - V0 → V1
+    ///   - V1 → V2
+    ///   - ...
+    /// * `None` - If current version is the latest version
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use netpulse::store::Version;
+    /// assert_eq!(Version::V0.next(), Some(Version::V1));
+    /// assert_eq!(Version::V1.next(), Some(Version::V2));
+    /// assert_eq!(Version::CURRENT.next(), None);  // No version after latest
+    /// ```
+    pub fn next(&self) -> Option<Self> {
+        Some(match *self {
+            Self::V0 => Self::V1,
+            Self::V1 => Self::V2,
+            Self::V2 => return None,
+        })
     }
 }
 
@@ -154,6 +215,7 @@ impl Store {
         Self {
             version: Version::CURRENT,
             checks: Vec::new(),
+            readonly: false,
         }
     }
 
@@ -356,12 +418,30 @@ impl Store {
 
         let mut store: Store = bincode::deserialize_from(reader)?;
 
-        // TODO: somehow account for old versions that are not compatible with the store struct
         if store.version != Version::CURRENT {
-            warn!("The store that was loaded is not of the current version:\nstore has {} but the current version is {}", store.version, Version::CURRENT);
+            warn!("The store that was loaded is not of the current version: store has {} but the current version is {}", store.version, Version::CURRENT);
             if Version::SUPPROTED.contains(&store.version) {
-                warn!("The old store version is still supported, migrating to newer version (in memory, can be made permanent by saving)");
-                store.version = Version::CURRENT;
+                warn!("The different store version is still supported, migrating to newer version");
+                warn!("Temp migration in memory, can be made permanent by saving");
+
+                if store.version > Version::CURRENT {
+                    warn!("The store version is newer than this version of netpulse can normally handle! Trying to ignore potential differences and loading as READONLY!");
+                    store.readonly = true;
+                }
+
+                while store.version < Version::CURRENT {
+                    for check in store.checks_mut().iter_mut() {
+                        if let Err(e) = check.migrate(Version::V0) {
+                            panic!("Error while migrating check '{}': {e}", check.get_hash());
+                        }
+                    }
+                    store.version = store
+                        .version
+                        .next()
+                        .expect("Somehow migrated to a version that does not exist");
+                }
+
+                assert_eq!(store.version, Version::CURRENT);
             } else {
                 error!("The store version is not supported");
                 return Err(StoreError::UnsupportedVersion);
@@ -384,8 +464,12 @@ impl Store {
     /// - File doesn't exist
     /// - Write fails
     /// - Serialization fails
+    /// - Trying to save a readonly [Store]
     pub fn save(&self) -> Result<(), StoreError> {
         info!("Saving the store");
+        if self.readonly {
+            return Err(StoreError::IsReadonly);
+        }
         let file = match fs::File::options()
             .read(false)
             .write(true)
@@ -425,19 +509,45 @@ impl Store {
     /// Returns the check interval in seconds.
     ///
     /// This determines how frequently the daemon performs checks.
-    /// Currently fixed at 60 seconds.
-    pub const fn period_seconds(&self) -> u64 {
-        60
+    /// Default is [DEFAULT_PERIOD], but this value can be overridden by setting [ENV_PERIOD] as
+    /// environment variable.
+    pub fn period_seconds(&self) -> i64 {
+        if let Ok(v) = std::env::var(ENV_PERIOD) {
+            v.parse().unwrap_or(DEFAULT_PERIOD)
+        } else {
+            DEFAULT_PERIOD
+        }
     }
 
-    /// Generates a hash of the in-memory store data.
+    /// Generates a cryptographic hash of the entire [Store].
     ///
-    /// Uses [DefaultHasher](std::hash::DefaultHasher) to create a 16-character hexadecimal hash
-    /// of the entire store contents. Useful for detecting changes.
-    pub fn display_hash(&self) -> String {
-        let mut hasher = std::hash::DefaultHasher::default();
-        self.hash(&mut hasher);
-        format!("{:016X}", hasher.finish())
+    /// Uses [blake3] for consistent hashing across Rust versions and platforms.
+    /// The hash changes when any check (or other field) in the store is modified,
+    /// added, or removed.
+    ///
+    /// # Implementation Details
+    ///
+    /// - Uses [bincode] for serialization of store data
+    /// - Uses [blake3] for cryptographic hashing
+    /// - Produces a 32-byte (256-bit) hash
+    /// - Performance scales linearly with store size
+    ///
+    /// # Memory Usage
+    ///
+    /// For a netpulsed running continuously:
+    /// - ~34 bytes per check
+    /// - ~50MB per year at 1 check/minute
+    /// - Serialization and hashing remain efficient
+    ///
+    /// # Panics
+    ///
+    /// May panic if serialization fails, which can happen in extreme cases:
+    /// - System is out of memory
+    /// - System is in a severely degraded state
+    ///
+    /// Normal [Store] data (checks, version info) will always serialize successfully.
+    pub fn get_hash(&self) -> blake3::Hash {
+        blake3::hash(&bincode::serialize(&self).expect("serialization of the store failed"))
     }
 
     /// Generates SHA-256 hash of the store file on disk.
@@ -453,7 +563,7 @@ impl Store {
     /// Returns [StoreError] if:
     /// - sha256sum command fails
     /// - Output parsing fails
-    pub fn display_hash_of_file(&self) -> Result<String, StoreError> {
+    pub fn get_hash_of_file(&self) -> Result<String, StoreError> {
         let out = Command::new("sha256sum").arg(Self::path()).output()?;
 
         if !out.status.success() {
@@ -518,6 +628,66 @@ impl Store {
     /// Returns the version of this [`Store`].
     pub fn version(&self) -> Version {
         self.version
+    }
+
+    /// Returns a mutable reference to the checks of this [`Store`].
+    pub fn checks_mut(&mut self) -> &mut Vec<Check> {
+        &mut self.checks
+    }
+
+    /// Reads only the [Version] from a store file without loading the entire [Store].
+    ///
+    /// This function efficiently checks the store version by:
+    /// 1. Opening the store file (decompressing it if enabled)
+    /// 2. Deserializing only the version field
+    /// 3. Skipping the rest of the data
+    ///
+    /// This is more efficient than loading the full store when only version
+    /// information is needed, such as during version compatibility checks. It may also keep
+    /// working if the format/version of the store is incompatible with what this version of
+    /// netpulse uses.
+    ///
+    /// # Feature Flags
+    ///
+    /// If the "compression" feature is enabled, this function will decompress
+    /// the store file using [zstd] before reading the version.
+    ///
+    /// # Errors
+    ///
+    /// Returns [StoreError] if:
+    /// - Store file doesn't exist ([`StoreError::DoesNotExist`])
+    /// - Store file is corrupt or truncated ([`StoreError::Load`])
+    /// - File permissions prevent reading ([`StoreError::Io`])
+    /// - Decompression fails (with "compression" feature) ([`StoreError::Io`])
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use netpulse::store::Store;
+    /// use netpulse::errors::StoreError;
+    ///
+    /// match Store::peek_file_version() {
+    ///     Ok(version) => println!("Store version in file: {}", version),
+    ///     Err(StoreError::DoesNotExist) => println!("No store file found"),
+    ///     Err(e) => eprintln!("Error reading store version: {}", e),
+    /// }
+    /// ```
+    pub fn peek_file_version() -> Result<Version, StoreError> {
+        #[derive(Deserialize)]
+        struct VersionOnly {
+            version: Version,
+            #[serde(skip)]
+            _rest: serde::de::IgnoredAny,
+        }
+
+        let file = std::fs::File::open(Self::path())?;
+        #[cfg(feature = "compression")]
+        let reader = zstd::Decoder::new(file)?;
+        #[cfg(not(feature = "compression"))]
+        let reader = file;
+
+        let version_only: VersionOnly = bincode::deserialize_from(reader)?;
+        Ok(version_only.version)
     }
 }
 

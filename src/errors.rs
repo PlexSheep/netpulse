@@ -3,7 +3,7 @@
 //! This module provides specialized error types for different components of netpulse:
 //! - [`StoreError`] - Errors related to store operations (loading, saving, versioning)
 //! - [`CheckError`] - Errors that occur during network checks (HTTP, ICMP)
-//! - [`DaemonError`] - Errors specific to daemon operations
+//! - [`RunError`] - Errors specific to executable operations
 //! - [`AnalysisError`] - Errors that occur during analysis and report generation
 //!
 //! All error types implement the standard Error trait and provide detailed error information.
@@ -53,7 +53,7 @@ pub enum StoreError {
     /// Failed to load store data from file.
     ///
     /// This typically indicates corruption or an incompatible / outdated store format.
-    #[error("Could not load the store from file: {source}")]
+    #[error("Could not deserialize the store from the loaded data: {source}")]
     Load {
         /// Underlying error
         #[from]
@@ -86,14 +86,15 @@ pub enum StoreError {
     ///
     /// This variant contains a [FlagSet] with only the flags [CheckFlags](CheckFlag) set that
     /// would make it a valid state. Exactly one of these flags must be set.
-    ///
-    /// # Example
-    ///
-    /// Every check should have either [CheckFlag::IPv4] or [CheckFlag::IPv6] set. If none of these
-    /// are set, this error will be returned with a [FlagSet] that has both flags set, to indicate
-    /// that one of these should be set.
     #[error("Check is missing at least one of these flags: {0:?}")]
     MissingFlag(FlagSet<CheckFlag>),
+    /// Occurs when trying to convert an arbitrary [u8] to a [Version](crate::store::Version) that
+    /// is not defined. Only known [Versions][crate::store::Version] are valid.
+    #[error("Tried to load a store version that does not exist: {0}")]
+    BadStoreVersion(u8),
+    /// A store can be loaded as readonly if it's corrupted or there is a version mismatch
+    #[error("Tried to save a readonly store")]
+    IsReadonly,
 }
 
 /// Errors that can occur during network checks.

@@ -19,7 +19,6 @@
 //! 3. Logs any cleanup errors
 
 use std::sync::atomic::AtomicBool;
-use std::time::{self, Duration, UNIX_EPOCH};
 
 use netpulse::errors::RunError;
 use netpulse::records::display_group;
@@ -59,19 +58,12 @@ pub(crate) fn daemon() {
             info!("restarting the daemon");
             store = load_store();
         }
-        let time = time::SystemTime::now();
-        if time
-            .duration_since(UNIX_EPOCH)
-            .expect("time is before the UNIX_EPOCH")
-            .as_secs()
-            % store.period_seconds()
-            == 0
-        {
+        if chrono::Utc::now().timestamp() % store.period_seconds() == 0 {
             if let Err(err) = wakeup(&mut store) {
                 error!("error in the wakeup turn: {err}");
             }
         }
-        std::thread::sleep(Duration::from_secs(1));
+        std::thread::sleep(std::time::Duration::from_secs(1));
     }
 }
 
@@ -97,7 +89,7 @@ fn load_store() -> Store {
 ///
 /// # Errors
 ///
-/// Returns [DaemonError] if store operations fail.
+/// Returns [RunError] if store operations fail.
 fn wakeup(store: &mut Store) -> Result<(), RunError> {
     info!("waking up!");
 
@@ -128,7 +120,7 @@ fn signal_hook() {
 ///
 /// # Errors
 ///
-/// Returns [DaemonError] if cleanup operations fail.
+/// Returns [RunError] if cleanup operations fail.
 fn cleanup(store: &Store) -> Result<(), RunError> {
     if let Err(err) = store.save() {
         error!("error while saving to file: {err:#?}");

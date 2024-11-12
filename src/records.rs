@@ -39,16 +39,18 @@
 //! ```
 
 use std::fmt::{Display, Write};
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::net::IpAddr;
-use std::time::{self};
 
+use chrono::{DateTime, Local, TimeZone, Utc};
 use deepsize::DeepSizeOf;
 use flagset::{flags, FlagSet};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
+use crate::analyze::fmt_timestamp;
 use crate::errors::StoreError;
+use crate::store::Version;
 
 /// Type of [IpAddr]
 ///
@@ -134,12 +136,7 @@ impl CheckType {
     /// - If check type is `Unknown`
     /// - If check type is `Dns` (not yet implemented)
     pub fn make(&self, remote: IpAddr) -> Check {
-        let mut check = Check::new(
-            std::time::SystemTime::now(),
-            FlagSet::default(),
-            None,
-            remote,
-        );
+        let mut check = Check::new(Utc::now(), FlagSet::default(), None, remote);
 
         match self {
             #[cfg(feature = "http")]
@@ -231,7 +228,7 @@ impl Display for CheckType {
 #[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Clone, Copy)]
 pub struct Check {
     /// Unix timestamp when check was performed (seconds since UNIX_EPOCH)
-    timestamp: u64,
+    timestamp: i64,
     /// Flags describing check type and result
     ///
     /// Stored as a bitset where each bit represents a [CheckFlag]
@@ -252,14 +249,27 @@ impl DeepSizeOf for Check {
 }
 
 impl Check {
-    /// Generates a hash of the in-memory [Check] data.
+    /// Generates a cryptographic hash of the [Check] data.
     ///
-    /// Uses [DefaultHasher](std::hash::DefaultHasher) to create a 16-character hexadecimal hash
-    /// of the [Check] that can be used to identify this [Check]. Useful for detecting changes.
-    pub fn get_hash(&self) -> String {
-        let mut hasher = std::hash::DefaultHasher::default();
-        self.hash(&mut hasher);
-        format!("{:016X}", hasher.finish())
+    /// Uses [blake3] for consistent hashing across Rust versions and platforms.
+    /// The hash remains stable as long as the check's contents don't change,
+    /// making it suitable for persistent identification of checks.
+    ///
+    /// # Implementation Details
+    ///
+    /// - Uses [bincode] for serialization of check data
+    /// - Uses [blake3] for cryptographic hashing
+    /// - Produces a 32-byte (256-bit) hash
+    ///
+    /// # Panics
+    ///
+    /// May panic if serialization fails, which can happen in extreme cases:
+    /// - System is out of memory
+    /// - System is in a severely degraded state
+    ///
+    /// Normal [Check] data will always serialize successfully.
+    pub fn get_hash(&self) -> blake3::Hash {
+        blake3::hash(&bincode::serialize(&self).expect("serialization of a check failed"))
     }
 
     /// Creates a new check result with the specified properties.
@@ -278,16 +288,14 @@ impl Check {
     ///
     /// Panics if timestamp is before UNIX_EPOCH.
     pub fn new(
-        time: time::SystemTime,
+        time: impl Into<DateTime<Utc>>,
         flags: impl Into<FlagSet<CheckFlag>>,
         latency: Option<u16>,
         target: IpAddr,
     ) -> Self {
+        let t: DateTime<Utc> = time.into();
         Check {
-            timestamp: time
-                .duration_since(time::UNIX_EPOCH)
-                .expect("timestamp of check was before UNIX_EPOCH (1970-01-01 00:00:00 UTC)")
-                .as_secs(),
+            timestamp: t.timestamp(),
             flags: flags.into(),
             latency,
             target,
@@ -321,13 +329,18 @@ impl Check {
     }
 
     /// Returns the timestamp of this [`Check`].
-    pub fn timestamp(&self) -> u64 {
+    pub fn timestamp(&self) -> i64 {
         self.timestamp
     }
 
     /// Returns the timestamp of this [`Check`] as [SystemTime](std::time::SystemTime).
-    pub fn timestamp_parsed(&self) -> time::SystemTime {
-        time::UNIX_EPOCH + time::Duration::from_secs(self.timestamp())
+    ///
+    /// The [`Check`] structure stores just seconds since UNIX_EPOCH, which is agnostic of
+    /// timezones. The seconds since the UNIX_EPOCH (1970-01-01 00:00) are converted to a timestamp
+    /// in UTC, and just for the formatting the timestamp is converted to the timezone of the user.
+    pub fn timestamp_parsed(&self) -> chrono::DateTime<Local> {
+        let t: DateTime<Local> = Local.timestamp_opt(self.timestamp(), 0).unwrap();
+        t
     }
 
     /// Returns a mutable reference to the flags of this [`Check`].
@@ -365,13 +378,28 @@ impl Check {
 
     /// Determines whether the check used IPv4 or IPv6.
     ///
-    /// Examines the [check's](Check) [target](Check::target) to determine which IP version was used.
+    /// Examines the [check's](Check) [target](Check::target()) to determine which IP version was used.
     ///
     /// # Returns
     ///
     /// The [IpType] that was used
     pub fn ip_type(&self) -> IpType {
         IpType::from(self.target)
+    }
+
+    /// Migrate a [Check] to the next [Version] that follows `current`
+    pub fn migrate(&mut self, current: Version) -> Result<(), StoreError> {
+        match current {
+            Version::V0 => (),
+            Version::V1 => self.timestamp = i64::from_ne_bytes(self.timestamp.to_ne_bytes()), // was originally u64
+            _ => unimplemented!("migrating from Version {current} is not yet imlpemented"),
+        }
+        Ok(())
+    }
+
+    /// Returns the target of this [`Check`].
+    pub fn target(&self) -> IpAddr {
+        self.target
     }
 }
 
@@ -380,7 +408,7 @@ impl Display for Check {
         write!(
             f,
             "Time: {}\nType: {}\nOk: {}\nTarget: {}\nLatency: {}\nHash: {}",
-            humantime::format_rfc3339_seconds(self.timestamp_parsed()),
+            fmt_timestamp(self.timestamp_parsed()),
             self.calc_type().unwrap_or(CheckType::Unknown),
             self.is_success(),
             self.target,
@@ -416,7 +444,7 @@ impl From<IpAddr> for IpType {
 ///
 /// # Errors
 ///
-/// Returns [AnalysisError] if string formatting fails.
+/// Returns [`std::fmt::Error`] if string formatting fails.
 pub fn display_group(group: &[&Check], f: &mut String) -> Result<(), std::fmt::Error> {
     if group.is_empty() {
         writeln!(f, "\t<Empty>")?;
@@ -432,6 +460,7 @@ pub fn display_group(group: &[&Check], f: &mut String) -> Result<(), std::fmt::E
 #[cfg(test)]
 mod test {
     use crate::TIMEOUT_MS;
+    use std::time; // no need to change it, since the api can work with both std and chrono now
 
     use super::*;
 
@@ -458,7 +487,7 @@ mod test {
         assert_eq!(
             c.deep_size_of(),
             std::mem::size_of::<IpAddr>() // self.target
-            + std::mem::size_of::<u64>() // self.timestamp
+            + std::mem::size_of::<i64>() // self.timestamp
             + std::mem::size_of::<u16>() // self.flags
             +3 /* latency */ + 2 // latency padding?
         );
@@ -471,7 +500,7 @@ mod test {
         assert_eq!(
             c1.deep_size_of(),
             std::mem::size_of::<IpAddr>() // self.target
-            + std::mem::size_of::<u64>() // self.timestamp
+            + std::mem::size_of::<i64>() // self.timestamp
             + std::mem::size_of::<u16>() // self.flags
             +3 /* latency */ + 2 // latency padding?
         );
@@ -484,7 +513,7 @@ mod test {
         assert_eq!(
             c2.deep_size_of(),
             std::mem::size_of::<IpAddr>() // self.target
-            + std::mem::size_of::<u64>() // self.timestamp
+            + std::mem::size_of::<i64>() // self.timestamp
             + std::mem::size_of::<u16>() // self.flags
             +3 /* latency */ + 2 // latency padding?
         )

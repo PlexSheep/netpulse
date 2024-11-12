@@ -33,12 +33,12 @@
 //!     println!("Daemon running with PID: {}", pid);
 //! }
 //! ```
-
 use std::io::{self, Write};
 use std::process::Command;
 use std::str::FromStr;
 
 use crate::DAEMON_PID_FILE;
+
 use getopts::Options;
 use tracing::{error, info, trace};
 use tracing_subscriber::FmtSubscriber;
@@ -259,5 +259,84 @@ pub fn getpid() -> Option<i32> {
             }
         };
         Some(pid)
+    }
+}
+
+/// Sets up a custom panic handler for user-friendly error reporting.
+///
+/// Should be called early in the program startup, ideally before any other operations.
+/// In debug builds, uses the default panic handler for detailed debugging output.
+/// In release builds, provides a user-friendly error message with reporting instructions.
+///
+/// # Example Output
+///
+/// ```text
+/// Well, this is embarrassing.
+///
+/// netpulse had a problem and crashed. This is a bug and should be reported!
+///
+/// Technical details:
+/// Version:     0.1.0
+/// OS:          linux x86_64
+/// Command:     netpulse --check
+/// Error:       called `Option::unwrap()` on a `None` value
+/// Location:    src/store.rs:142
+///
+/// Please create a new issue at https://github.com/PlexSheep/netpulse/issues
+/// with the above technical details and what you were doing when this happened.
+/// ```
+pub fn setup_panic_handler() {
+    if !cfg!(debug_assertions) {
+        // Only override in release builds
+        std::panic::set_hook(Box::new(|panic_info| {
+            let mut message = String::new();
+            message.push_str("\nWell, this is embarrassing.\n\n");
+            message.push_str(&format!(
+                "{} had a problem and crashed. This is a bug and should be reported!\n\n",
+                env!("CARGO_PKG_NAME")
+            ));
+
+            message.push_str("Technical details:\n");
+            message.push_str(&format!("Version:     {}\n", env!("CARGO_PKG_VERSION")));
+
+            // Get OS info
+            #[cfg(target_os = "linux")]
+            let os = "linux";
+            #[cfg(target_os = "macos")]
+            let os = "macos";
+            #[cfg(target_os = "windows")]
+            let os = "windows";
+
+            message.push_str(&format!("OS:          {} {}\n", os, std::env::consts::ARCH));
+
+            // Get command line
+            let args: Vec<_> = std::env::args().collect();
+            message.push_str(&format!("Command:     {}\n", args.join(" ")));
+
+            // Extract error message and location
+            if let Some(msg) = panic_info.payload().downcast_ref::<&str>() {
+                message.push_str(&format!("Error:       {}\n", msg));
+            } else if let Some(msg) = panic_info.payload().downcast_ref::<String>() {
+                message.push_str(&format!("Error:       {}\n", msg));
+            }
+
+            if let Some(location) = panic_info.location() {
+                message.push_str(&format!(
+                    "Location:    {}:{}\n",
+                    location.file(),
+                    location.line()
+                ));
+            }
+
+            message.push_str(
+                "\nPlease create a new issue at https://github.com/PlexSheep/netpulse/issues\n",
+            );
+            message.push_str(
+                "with the above technical details and what you were doing when this happened.\n",
+            );
+
+            eprintln!("{}", message);
+            std::process::exit(1);
+        }));
     }
 }
