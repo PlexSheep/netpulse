@@ -2,6 +2,43 @@
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/PlexSheep/netpulse/compare/v0.5.1...v0.6.0)
+
+### ⛰️ Features
+
+- *(reader)* Rewrite store option - ([ee2f7c8](https://github.com/PlexSheep/netpulse/commit/ee2f7c8025e5ec8a68b7c62d8ceb29d27286d498))
+- *(store)* Peek version from fs - ([f7e39b7](https://github.com/PlexSheep/netpulse/commit/f7e39b758fbbf6684eacda1423d42fb2ea15b544))
+- *(store)* Add readonly mode to store - ([b111ff2](https://github.com/PlexSheep/netpulse/commit/b111ff25bd3c1f7961e922c110724b092c1b8989))
+- *(store)* Set period for daemon with env var - ([9b5dc2d](https://github.com/PlexSheep/netpulse/commit/9b5dc2db933ef047fa8a8a4df68d1d6189aaa33d))
+- Add a panic handler to netpulse and netpulsed [#13](https://github.com/PlexSheep/netpulse/pull/13) - ([43b70ff](https://github.com/PlexSheep/netpulse/commit/43b70ffa8902bf7669819548fdba2c5ab66ccbaf))
+- [**breaking**] Use blake3 for hashes [#16](https://github.com/PlexSheep/netpulse/pull/16) - ([aaaaca9](https://github.com/PlexSheep/netpulse/commit/aaaaca9ddb522a03d783ff691c91b09605bc1864))
+- Use chrono instead of humantime, make times more readable - ([76cd525](https://github.com/PlexSheep/netpulse/commit/76cd525eae07cc053db8f9666d45f832dfb37494))
+
+### 🐛 Bug Fixes
+
+- *(store)* Serialization and deserialization of Version enum did not work - ([8623abf](https://github.com/PlexSheep/netpulse/commit/8623abf7531232f017a5470ad5e7466850a057de))
+
+### 🚜 Refactor
+
+- *(reader)* Load store as readonly - ([d10a7ca](https://github.com/PlexSheep/netpulse/commit/d10a7ca530c4a1f530dacddbb287a995da072af3))
+- *(records)* Remove ip type flag and infer ip type from the stored target - ([6c985b0](https://github.com/PlexSheep/netpulse/commit/6c985b0e1efa834ea9416551e77e2ffc7bab0f96))
+- *(store)* [**breaking**] Version is now an enum - ([c57d0cb](https://github.com/PlexSheep/netpulse/commit/c57d0cbb649b8423f88e46dfb41f5fc319e5bd8a))
+- *(store)* [**breaking**] Use i64 for timestamp instead of u64 - ([4395765](https://github.com/PlexSheep/netpulse/commit/4395765757a054739ea30aed51eda21dff15365e))
+- *(store)* Adjust log levels for some messages - ([c628125](https://github.com/PlexSheep/netpulse/commit/c628125874e08f82d4c0226ada70401abaf3714c))
+- Move time formatting utils to analyze - ([4165c6a](https://github.com/PlexSheep/netpulse/commit/4165c6a809034699fffa91444f76696c020385a9))
+- Use chrono instead of std - ([4a34b4b](https://github.com/PlexSheep/netpulse/commit/4a34b4be3edf66ab79dc4afd42ef5adbf07995a2))
+
+### 📚 Documentation
+
+- *(api)* Fix peek_version adjacent stuff - ([9d8fb8a](https://github.com/PlexSheep/netpulse/commit/9d8fb8a98bbcaad4744fbe88e5b4bae1b60c34a0))
+- *(api)* Fix doc links and old info - ([351afb3](https://github.com/PlexSheep/netpulse/commit/351afb3db043ebfd168024c9094801e02aaea282))
+- *(api)* Much simplify the documentation for Check::ip_type - ([69cae8c](https://github.com/PlexSheep/netpulse/commit/69cae8ce1308be8adf3c276cc0cc2ddedcf5c7f4))
+
+### ⚙️ Miscellaneous Tasks
+
+- Automatic Rust CI changes - ([3d56189](https://github.com/PlexSheep/netpulse/commit/3d561895562cbba6258aadadf79fd3d2eaa7d361))
+
+
 ## [0.5.1](https://github.com/PlexSheep/netpulse/compare/v0.5.0...v0.5.1)
 
 ### 🐛 Bug Fixes
