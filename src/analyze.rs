@@ -375,11 +375,10 @@ fn store_meta(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     let store_size_mem = store.deep_size_of();
     let store_size_fs = std::fs::metadata(Store::path())?.size();
 
-    key_value_write(f, "Hash Datastructure", store.display_hash())?;
-    key_value_write(f, "Hash Store File", store.display_hash_of_file()?)?;
+    key_value_write(f, "Hash mem blake3", store.get_hash())?;
+    key_value_write(f, "Hash file sha256", store.get_hash_of_file()?)?;
     key_value_write(f, "Store Version (mem)", store.version())?;
-    // TODO: find a way to get the version just from file without deserializing it
-    key_value_write(f, "Store Version (file)", "<TODO>")?;
+    key_value_write(f, "Store Version (file)", Store::peek_file_version()?)?;
     key_value_write(f, "Store Size (mem)", store_size_mem)?;
     key_value_write(f, "Store Size (file)", store_size_fs)?;
     key_value_write(
