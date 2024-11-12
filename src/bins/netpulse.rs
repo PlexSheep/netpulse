@@ -54,7 +54,10 @@ fn main() {
         print_version()
     }
     if matches.opt_present("dump") {
-        dump(failed_only);
+        if let Err(e) = dump(failed_only) {
+            error!("{e}");
+            std::process::exit(1)
+        }
     } else if matches.opt_present("test") {
         if let Err(e) = test_checks() {
             error!("{e}");
@@ -66,7 +69,10 @@ fn main() {
             std::process::exit(1)
         }
     } else {
-        analysis();
+        if let Err(e) = analysis() {
+            error!("{e}");
+            std::process::exit(1)
+        }
     }
 }
 
@@ -80,18 +86,8 @@ fn test_checks() -> Result<(), RunError> {
     Ok(())
 }
 
-fn store_load() -> Store {
-    match Store::load() {
-        Err(e) => {
-            eprintln!("The store could not be loaded: {e}");
-            std::process::exit(1)
-        }
-        Ok(s) => s,
-    }
-}
-
-fn dump(failed_only: bool) {
-    let store = store_load();
+fn dump(failed_only: bool) -> Result<(), RunError> {
+    let store = Store::load(true)?;
     let mut buf = String::new();
     let ref_checks: Vec<&Check> = if failed_only {
         store.checks().iter().filter(|c| !c.is_success()).collect()
@@ -102,17 +98,18 @@ fn dump(failed_only: bool) {
         eprintln!("{e}");
         std::process::exit(1);
     }
-    println!("{buf}")
+    println!("{buf}");
+    Ok(())
 }
 
 fn rewrite() -> Result<(), RunError> {
-    let s = Store::load()?;
+    let s = Store::load(true)?;
     s.save()?;
     Ok(())
 }
 
-fn analysis() {
-    let store = store_load();
+fn analysis() -> Result<(), RunError> {
+    let store = Store::load(true)?;
     match analyze::analyze(&store) {
         Err(e) => {
             eprintln!("Error while making the analysis: {e}");
@@ -120,6 +117,7 @@ fn analysis() {
         }
         Ok(report) => println!("{report}"),
     }
+    Ok(())
 }
 
 fn print_version() -> ! {

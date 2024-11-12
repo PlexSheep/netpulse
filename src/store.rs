@@ -347,7 +347,7 @@ impl Store {
     /// store.save().unwrap();
     /// ```
     pub fn load_or_create() -> Result<Self, StoreError> {
-        match Self::load() {
+        match Self::load(false) {
             Ok(store) => Ok(store),
             Err(err) => match &err {
                 StoreError::DoesNotExist => Self::create(),
@@ -392,7 +392,7 @@ impl Store {
     /// - Store file doesn't exist
     /// - Read/parse fails
     /// - Version unsupported
-    pub fn load() -> Result<Self, StoreError> {
+    pub fn load(readonly: bool) -> Result<Self, StoreError> {
         let file = match fs::File::options()
             .read(true)
             .write(false)
@@ -447,6 +447,11 @@ impl Store {
                 return Err(StoreError::UnsupportedVersion);
             }
         }
+
+        if readonly {
+            store.set_readonly();
+        }
+
         Ok(store)
     }
 
@@ -688,6 +693,16 @@ impl Store {
 
         let version_only: VersionOnly = bincode::deserialize_from(reader)?;
         Ok(version_only.version)
+    }
+
+    /// True if this [Store] is read only
+    pub fn readonly(&self) -> bool {
+        self.readonly
+    }
+
+    /// Make this [Store] read only
+    pub fn set_readonly(&mut self) {
+        self.readonly = true;
     }
 }
 
