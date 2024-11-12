@@ -17,7 +17,7 @@
 
 use std::fmt::Display;
 use std::fs::{self};
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use std::io::{ErrorKind, Write};
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
@@ -483,14 +483,35 @@ impl Store {
         60
     }
 
-    /// Generates a hash of the in-memory store data.
+    /// Generates a cryptographic hash of the entire [Store].
     ///
-    /// Uses [DefaultHasher](std::hash::DefaultHasher) to create a 16-character hexadecimal hash
-    /// of the entire store contents. Useful for detecting changes.
-    pub fn display_hash(&self) -> String {
-        let mut hasher = std::hash::DefaultHasher::default();
-        self.hash(&mut hasher);
-        format!("{:016X}", hasher.finish())
+    /// Uses [blake3] for consistent hashing across Rust versions and platforms.
+    /// The hash changes when any check (or other field) in the store is modified,
+    /// added, or removed.
+    ///
+    /// # Implementation Details
+    ///
+    /// - Uses [bincode] for serialization of store data
+    /// - Uses [blake3] for cryptographic hashing
+    /// - Produces a 32-byte (256-bit) hash
+    /// - Performance scales linearly with store size
+    ///
+    /// # Memory Usage
+    ///
+    /// For a netpulsed running continuously:
+    /// - ~34 bytes per check
+    /// - ~50MB per year at 1 check/minute
+    /// - Serialization and hashing remain efficient
+    ///
+    /// # Panics
+    ///
+    /// May panic if serialization fails, which can happen in extreme cases:
+    /// - System is out of memory
+    /// - System is in a severely degraded state
+    ///
+    /// Normal [Store] data (checks, version info) will always serialize successfully.
+    pub fn get_hash(&self) -> blake3::Hash {
+        blake3::hash(&bincode::serialize(&self).expect("serialization of the store failed"))
     }
 
     /// Generates SHA-256 hash of the store file on disk.
@@ -506,7 +527,7 @@ impl Store {
     /// Returns [StoreError] if:
     /// - sha256sum command fails
     /// - Output parsing fails
-    pub fn display_hash_of_file(&self) -> Result<String, StoreError> {
+    pub fn get_hash_of_file(&self) -> Result<String, StoreError> {
         let out = Command::new("sha256sum").arg(Self::path()).output()?;
 
         if !out.status.success() {

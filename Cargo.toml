@@ -34,6 +34,7 @@ deepsize = "0.2.0"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", optional = true }
 chrono = { version = "0.4.38", optional = false }
+blake3 = "1.5.4"
 
 [[bin]] # client
 name = "netpulse"

@@ -249,14 +249,27 @@ impl DeepSizeOf for Check {
 }
 
 impl Check {
-    /// Generates a hash of the in-memory [Check] data.
+    /// Generates a cryptographic hash of the [Check] data.
     ///
-    /// Uses [DefaultHasher](std::hash::DefaultHasher) to create a 16-character hexadecimal hash
-    /// of the [Check] that can be used to identify this [Check]. Useful for detecting changes.
-    pub fn get_hash(&self) -> String {
-        let mut hasher = std::hash::DefaultHasher::default();
-        self.hash(&mut hasher);
-        format!("{:016X}", hasher.finish())
+    /// Uses [blake3] for consistent hashing across Rust versions and platforms.
+    /// The hash remains stable as long as the check's contents don't change,
+    /// making it suitable for persistent identification of checks.
+    ///
+    /// # Implementation Details
+    ///
+    /// - Uses [bincode] for serialization of check data
+    /// - Uses [blake3] for cryptographic hashing
+    /// - Produces a 32-byte (256-bit) hash
+    ///
+    /// # Panics
+    ///
+    /// May panic if serialization fails, which can happen in extreme cases:
+    /// - System is out of memory
+    /// - System is in a severely degraded state
+    ///
+    /// Normal [Check] data will always serialize successfully.
+    pub fn get_hash(&self) -> blake3::Hash {
+        blake3::hash(&bincode::serialize(&self).expect("serialization of a check failed"))
     }
 
     /// Creates a new check result with the specified properties.
