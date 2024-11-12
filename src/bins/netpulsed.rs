@@ -31,6 +31,7 @@ use daemonize::Daemonize;
 use getopts::Options;
 use netpulse::common::{
     confirm, exec_cmd_for_user, getpid, getpid_running, init_logging, print_usage, root_guard,
+    setup_panic_handler,
 };
 use netpulse::errors::RunError;
 use netpulse::store::Store;
@@ -53,6 +54,7 @@ const SYSTEMD_SERVICE_PATH: &str = "/etc/systemd/system/netpulsed.service";
 static USES_DAEMON_SYSTEM: AtomicBool = AtomicBool::new(false);
 
 fn main() -> Result<(), RunError> {
+    setup_panic_handler();
     init_logging(tracing::Level::DEBUG);
     let args: Vec<String> = std::env::args().collect();
     let program = &args[0];

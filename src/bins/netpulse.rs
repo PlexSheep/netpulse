@@ -13,13 +13,14 @@
 
 use getopts::Options;
 use netpulse::analyze;
-use netpulse::common::{init_logging, print_usage};
+use netpulse::common::{init_logging, print_usage, setup_panic_handler};
 use netpulse::errors::RunError;
 use netpulse::records::{display_group, Check};
 use netpulse::store::Store;
 use tracing::error;
 
 fn main() {
+    setup_panic_handler();
     init_logging(tracing::Level::INFO);
     let args: Vec<String> = std::env::args().collect();
     let program = &args[0];
