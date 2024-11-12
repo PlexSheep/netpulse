@@ -29,9 +29,9 @@
 //! - Outage analysis
 //! - Store metadata (hashes, versions)
 
+use chrono::{DateTime, Local};
 use deepsize::DeepSizeOf;
 
-use crate::common::fmt_timestamp;
 use crate::errors::AnalysisError;
 use crate::records::{Check, CheckType, IpType};
 use crate::store::Store;
@@ -39,6 +39,16 @@ use crate::store::Store;
 use std::fmt::{Display, Write};
 use std::hash::Hash;
 use std::os::unix::fs::MetadataExt;
+
+/// Formatting rules for timestamps that are easily readable by humans.
+///
+/// ```rust
+/// use chrono::{DateTime, Local};
+/// # use netpulse::analyze::TIME_FORMAT_HUMANS;
+/// let datetime: DateTime<Local> = Local::now();
+/// println!("it is now: {}", datetime.format(TIME_FORMAT_HUMANS));
+/// ```
+pub const TIME_FORMAT_HUMANS: &str = "%Y-%m-%d %H:%M:%S %Z";
 
 /// Represents a period of consecutive failed checks.
 ///
@@ -148,6 +158,28 @@ pub fn analyze(store: &Store) -> Result<String, AnalysisError> {
     store_meta(store, &mut f)?;
 
     Ok(f)
+}
+
+/// Formats a [SystemTime](std::time::SystemTime) as an easily readable timestamp for humans.
+///
+/// Works with [`std::time::SystemTime`] and [`chrono::DateTime<Local>`].
+///
+/// # Examples
+///
+/// ```rust
+/// # use netpulse::analyze::fmt_timestamp;
+/// use std::time::SystemTime;
+/// use chrono;
+/// let datetime: SystemTime = SystemTime::now();
+/// println!("it is now: {}", fmt_timestamp(datetime));
+/// let datetime: chrono::DateTime<chrono::Local> = chrono::Local::now();
+/// println!("it is now: {}", fmt_timestamp(datetime));
+/// let datetime: chrono::DateTime<chrono::Utc> = chrono::Utc::now();
+/// println!("it is now: {}", fmt_timestamp(datetime));
+/// ```
+pub fn fmt_timestamp(timestamp: impl Into<DateTime<Local>>) -> String {
+    let a: chrono::DateTime<chrono::Local> = timestamp.into();
+    format!("{}", a.format(TIME_FORMAT_HUMANS))
 }
 
 /// Adds a section divider to the report with a title.

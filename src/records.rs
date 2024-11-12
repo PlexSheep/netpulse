@@ -48,7 +48,7 @@ use flagset::{flags, FlagSet};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
-use crate::common::fmt_timestamp;
+use crate::analyze::fmt_timestamp;
 use crate::errors::StoreError;
 use crate::store::Version;
 
