@@ -26,7 +26,7 @@ use std::str::FromStr;
 
 use deepsize::DeepSizeOf;
 use serde::{Deserialize, Serialize};
-use tracing::{error, trace, warn};
+use tracing::{error, info, trace, warn};
 
 use crate::errors::StoreError;
 use crate::records::{Check, CheckType, TARGETS};
@@ -109,12 +109,12 @@ impl From<Version> for u8 {
 
 impl Version {
     /// Current version of the store format
-    pub const CURRENT: Self = Version::new(0);
+    pub const CURRENT: Self = Version::new(1);
 
     /// List of supported store format versions
     ///
     /// Used for compatibility checking when loading stores.
-    pub const SUPPROTED: &[Self] = &[Version::new(0)];
+    pub const SUPPROTED: &[Self] = &[Version::new(0), Version::new(1)];
 
     /// Creates a new Version with the given raw version number
     pub(crate) const fn new(raw: u8) -> Self {
@@ -358,9 +358,9 @@ impl Store {
 
         // TODO: somehow account for old versions that are not compatible with the store struct
         if store.version != Version::CURRENT {
-            error!("The store that was loaded is not of the current version:\nstore has {} but the current version is {}", store.version, Version::CURRENT);
+            warn!("The store that was loaded is not of the current version:\nstore has {} but the current version is {}", store.version, Version::CURRENT);
             if Version::SUPPROTED.contains(&store.version) {
-                error!("The old store version is still supported, migrating to newer version");
+                warn!("The old store version is still supported, migrating to newer version (in memory, can be made permanent by saving)");
                 store.version = Version::CURRENT;
             } else {
                 error!("The store version is not supported");
@@ -385,6 +385,7 @@ impl Store {
     /// - Write fails
     /// - Serialization fails
     pub fn save(&self) -> Result<(), StoreError> {
+        info!("Saving the store");
         let file = match fs::File::options()
             .read(false)
             .write(true)

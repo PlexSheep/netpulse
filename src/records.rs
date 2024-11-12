@@ -50,6 +50,17 @@ use tracing::error;
 
 use crate::errors::StoreError;
 
+/// Type of [IpAddr]
+///
+/// This enum can be used to work with just abstract IP versions, not whole [Ip Addresses](IpAddr).
+#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Clone, Copy, DeepSizeOf)]
+pub enum IpType {
+    /// Type is IPv4
+    V4,
+    /// Type is IPv6
+    V6,
+}
+
 /// List of target IP addresses used for connectivity checks.
 ///
 /// # Warning
@@ -63,8 +74,7 @@ flags! {
     ///
     /// Uses a bitflag system to efficiently store multiple properties:
     /// - Result flags (bits 0-7): Success, failure reasons
-    /// - Protocol flags (bits 8-11): IPv4/IPv6
-    /// - Type flags (bits 12-15): Check type (HTTP, ICMP, DNS)
+    /// - Type flags (bits 8-15): Check type (HTTP, ICMP, DNS)
     #[derive(Hash, Deserialize, Serialize)]
     pub enum CheckFlag: u16 {
         /// If this is not set, the check will be considered failed
@@ -73,11 +83,6 @@ flags! {
         Timeout     =   0b0000_0000_0000_0010,
         /// Failure because the destination is unreachable
         Unreachable =   0b0000_0000_0000_0100,
-
-        /// The Check used IPv4
-        IPv4        =   0b0000_0001_0000_0000,
-        /// The Check used IPv6
-        IPv6        =   0b0000_0010_0000_0000,
 
         /// The Check used HTTP/HTTPS
         TypeHTTP    =   0b0001_0000_0000_0000,
@@ -135,11 +140,6 @@ impl CheckType {
             None,
             remote,
         );
-
-        match remote {
-            IpAddr::V4(_) => check.add_flag(CheckFlag::IPv4),
-            IpAddr::V6(_) => check.add_flag(CheckFlag::IPv6),
-        }
 
         match self {
             #[cfg(feature = "http")]
@@ -365,57 +365,13 @@ impl Check {
 
     /// Determines whether the check used IPv4 or IPv6.
     ///
-    /// Examines the check's flags to determine which IP version was used.
-    /// A check should have either IPv4 or IPv6 flag set, but not both.
+    /// Examines the [check's](Check) [target](Check::target) to determine which IP version was used.
     ///
     /// # Returns
     ///
-    /// * `CheckFlag::IPv4` - Check used IPv4
-    /// * `CheckFlag::IPv6` - Check used IPv6
-    ///
-    /// # Errors
-    ///
-    /// * Returns [`StoreError::AmbiguousFlags`] if both IPv4 and IPv6 flags are set,
-    ///   as this represents an invalid state that should never occur.
-    ///
-    /// * Returns [`StoreError::MissingFlag`] if neither IPv4 or IPv6 flags are set,
-    ///   as this represents an invalid state that should never occur.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use netpulse::records::{Check, CheckFlag};
-    /// use flagset::FlagSet;
-    ///
-    /// let mut check = Check::new(std::time::SystemTime::now(), FlagSet::default(), None, "1.1.1.1".parse().unwrap());
-    ///
-    /// assert!(check.ip_type().is_err()); // we haven't set the IP flags! We need to set either IPv4 or IPv6
-    ///
-    /// check.add_flag(CheckFlag::IPv4);
-    ///
-    /// match check.ip_type().unwrap() {
-    ///     CheckFlag::IPv4 => println!("IPv4 check"),
-    ///     CheckFlag::IPv6 => println!("IPv6 check"),
-    ///     _ => unreachable!()
-    /// }
-    ///
-    /// check.add_flag(CheckFlag::IPv6); // But what if we now also add IPv6?
-    ///
-    /// assert!(check.ip_type().is_err()); // Oh no! Now it's ambiguos
-    /// ```
-    pub fn ip_type(&self) -> Result<CheckFlag, StoreError> {
-        let flags = self.flags();
-        if flags.contains(CheckFlag::IPv4) && flags.contains(CheckFlag::IPv6) {
-            Err(StoreError::AmbiguousFlags(
-                CheckFlag::IPv4 | CheckFlag::IPv6,
-            ))
-        } else if flags.contains(CheckFlag::IPv4) {
-            Ok(CheckFlag::IPv4)
-        } else if flags.contains(CheckFlag::IPv6) {
-            Ok(CheckFlag::IPv6)
-        } else {
-            Err(StoreError::MissingFlag(CheckFlag::IPv4 | CheckFlag::IPv6))
-        }
+    /// The [IpType] that was used
+    pub fn ip_type(&self) -> IpType {
+        IpType::from(self.target)
     }
 }
 
@@ -434,6 +390,15 @@ impl Display for Check {
             },
             self.get_hash()
         )
+    }
+}
+
+impl From<IpAddr> for IpType {
+    fn from(value: IpAddr) -> Self {
+        match value {
+            IpAddr::V4(_) => Self::V4,
+            IpAddr::V6(_) => Self::V6,
+        }
     }
 }
 

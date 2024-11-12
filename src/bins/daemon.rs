@@ -103,7 +103,7 @@ fn wakeup(store: &mut Store) -> Result<(), RunError> {
 
     let mut buf = String::new();
     display_group(&store.make_checks(), &mut buf)?;
-    info!("{buf}");
+    info!("Made checks\n{buf}");
 
     if let Err(err) = store.save() {
         error!("error while saving to file: {err:}");
