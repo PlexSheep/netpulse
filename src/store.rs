@@ -73,9 +73,11 @@ pub const ENV_PATH: &str = "NETPULSE_STORE_PATH";
 #[derive(
     Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Copy, Clone, DeepSizeOf, PartialOrd, Ord,
 )]
-pub struct Version {
-    /// Raw version number as u8
-    inner: u8,
+#[allow(missing_docs)] // It's just versions man
+pub enum Version {
+    V0 = 0,
+    V1 = 1,
+    V2 = 2,
 }
 
 /// Main storage type for netpulse check results.
@@ -93,19 +95,26 @@ pub struct Store {
 
 impl Display for Version {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.inner)
+        write!(f, "{}", self.raw())
     }
 }
 
-impl From<u8> for Version {
-    fn from(value: u8) -> Self {
-        Self::new(value)
+impl TryFrom<u8> for Version {
+    type Error = StoreError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Ok(match value {
+            0 => Self::V0,
+            1 => Self::V1,
+            2 => Self::V2,
+            _ => return Err(StoreError::BadStoreVersion(value)),
+        })
     }
 }
 
 impl From<Version> for u8 {
     fn from(value: Version) -> Self {
-        value.inner
+        value.raw()
     }
 }
 
@@ -118,21 +127,36 @@ impl Version {
     /// Used for compatibility checking when loading stores.
     pub const SUPPROTED: &[Self] = &[Self::V0, Self::V1, Self::V2];
 
-    pub const V0: Self = Version::new(0);
-    pub const V1: Self = Version::new(1);
-    pub const V2: Self = Version::new(2);
-
-    /// Creates a new Version with the given raw version number
-    pub(crate) const fn new(raw: u8) -> Self {
-        Self { inner: raw }
+    /// Gets the raw [Version] as [u8]
+    pub const fn raw(&self) -> u8 {
+        *self as u8
     }
 
+    /// Returns the next sequential [Version], if one exists.
+    ///
+    /// Used for version migration logic to determine the next version to upgrade to.
+    ///
+    /// # Returns
+    ///
+    /// * `Some(Version)` - The next version in sequence:
+    ///   - V0 → V1
+    ///   - V1 → V2
+    ///   - ...
+    /// * `None` - If current version is the latest version
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use netpulse::store::Version;
+    /// assert_eq!(Version::V0.next(), Some(Version::V1));
+    /// assert_eq!(Version::V1.next(), Some(Version::V2));
+    /// assert_eq!(Version::CURRENT.next(), None);  // No version after latest
+    /// ```
     pub fn next(&self) -> Option<Self> {
         Some(match *self {
             Self::V0 => Self::V1,
             Self::V1 => Self::V2,
             Self::V2 => return None,
-            _ => unreachable!("working with a version that does not exist"),
         })
     }
 }
