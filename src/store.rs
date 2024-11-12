@@ -629,6 +629,58 @@ impl Store {
     pub fn checks_mut(&mut self) -> &mut Vec<Check> {
         &mut self.checks
     }
+
+    /// Reads only the version field from a store file without loading the entire store.
+    ///
+    /// This function efficiently checks the store version by:
+    /// 1. Opening the store file
+    /// 2. Deserializing only the version field
+    /// 3. Skipping the rest of the data
+    ///
+    /// This is more efficient than loading the full store when only version
+    /// information is needed, such as during version compatibility checks.
+    ///
+    /// # Feature Flags
+    ///
+    /// If the "compression" feature is enabled, this function will decompress
+    /// the store file using zstd before reading the version.
+    ///
+    /// # Errors
+    ///
+    /// Returns [StoreError] if:
+    /// - Store file doesn't exist ([`StoreError::DoesNotExist`])
+    /// - Store file is corrupt or truncated ([`StoreError::Load`])
+    /// - File permissions prevent reading
+    /// - Decompression fails (with "compression" feature)
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use netpulse::Store;
+    ///
+    /// match Store::peek_file_version() {
+    ///     Ok(version) => println!("Store version: {}", version),
+    ///     Err(StoreError::DoesNotExist) => println!("No store file found"),
+    ///     Err(e) => eprintln!("Error reading store version: {}", e),
+    /// }
+    /// ```
+    pub fn peek_file_version() -> Result<Version, StoreError> {
+        #[derive(Deserialize)]
+        struct VersionOnly {
+            version: Version,
+            #[serde(skip)]
+            _rest: serde::de::IgnoredAny,
+        }
+
+        let file = std::fs::File::open(Self::path())?;
+        #[cfg(feature = "compression")]
+        let reader = zstd::Decoder::new(file)?;
+        #[cfg(not(feature = "compression"))]
+        let reader = file;
+
+        let version_only: VersionOnly = bincode::deserialize_from(reader)?;
+        Ok(version_only.version)
+    }
 }
 
 fn has_cap_net_raw() -> bool {
