@@ -89,7 +89,7 @@ fn load_store() -> Store {
 ///
 /// # Errors
 ///
-/// Returns [DaemonError] if store operations fail.
+/// Returns [RunError] if store operations fail.
 fn wakeup(store: &mut Store) -> Result<(), RunError> {
     info!("waking up!");
 
@@ -120,7 +120,7 @@ fn signal_hook() {
 ///
 /// # Errors
 ///
-/// Returns [DaemonError] if cleanup operations fail.
+/// Returns [RunError] if cleanup operations fail.
 fn cleanup(store: &Store) -> Result<(), RunError> {
     if let Err(err) = store.save() {
         error!("error while saving to file: {err:#?}");

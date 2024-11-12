@@ -3,7 +3,7 @@
 //! This module provides specialized error types for different components of netpulse:
 //! - [`StoreError`] - Errors related to store operations (loading, saving, versioning)
 //! - [`CheckError`] - Errors that occur during network checks (HTTP, ICMP)
-//! - [`DaemonError`] - Errors specific to daemon operations
+//! - [`RunError`] - Errors specific to executable operations
 //! - [`AnalysisError`] - Errors that occur during analysis and report generation
 //!
 //! All error types implement the standard Error trait and provide detailed error information.
@@ -86,12 +86,6 @@ pub enum StoreError {
     ///
     /// This variant contains a [FlagSet] with only the flags [CheckFlags](CheckFlag) set that
     /// would make it a valid state. Exactly one of these flags must be set.
-    ///
-    /// # Example
-    ///
-    /// Every check should have either [CheckFlag::IPv4] or [CheckFlag::IPv6] set. If none of these
-    /// are set, this error will be returned with a [FlagSet] that has both flags set, to indicate
-    /// that one of these should be set.
     #[error("Check is missing at least one of these flags: {0:?}")]
     MissingFlag(FlagSet<CheckFlag>),
     /// Occurs when trying to convert an arbitrary [u8] to a [Version](crate::store::Version) that

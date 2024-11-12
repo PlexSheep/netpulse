@@ -274,7 +274,7 @@ pub fn getpid() -> Option<i32> {
 
 /// Formats a [SystemTime](std::time::SystemTime) as an easily readable timestamp for humans.
 ///
-/// Works with [std::time::SystemTime] and [chrono::DateTime<Local>].
+/// Works with [`std::time::SystemTime`] and [`chrono::DateTime<Local>`].
 ///
 /// # Examples
 ///

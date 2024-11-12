@@ -365,7 +365,7 @@ impl Check {
 
     /// Determines whether the check used IPv4 or IPv6.
     ///
-    /// Examines the [check's](Check) [target](Check::target) to determine which IP version was used.
+    /// Examines the [check's](Check) [target](Check::target()) to determine which IP version was used.
     ///
     /// # Returns
     ///
@@ -382,6 +382,11 @@ impl Check {
             _ => unimplemented!("migrating from Version {current} is not yet imlpemented"),
         }
         Ok(())
+    }
+
+    /// Returns the target of this [`Check`].
+    pub fn target(&self) -> IpAddr {
+        self.target
     }
 }
 
@@ -426,7 +431,7 @@ impl From<IpAddr> for IpType {
 ///
 /// # Errors
 ///
-/// Returns [AnalysisError] if string formatting fails.
+/// Returns [`std::fmt::Error`] if string formatting fails.
 pub fn display_group(group: &[&Check], f: &mut String) -> Result<(), std::fmt::Error> {
     if group.is_empty() {
         writeln!(f, "\t<Empty>")?;
