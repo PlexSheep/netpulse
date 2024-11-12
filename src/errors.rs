@@ -53,7 +53,7 @@ pub enum StoreError {
     /// Failed to load store data from file.
     ///
     /// This typically indicates corruption or an incompatible / outdated store format.
-    #[error("Could not load the store from file: {source}")]
+    #[error("Could not deserialize the store from the loaded data: {source}")]
     Load {
         /// Underlying error
         #[from]

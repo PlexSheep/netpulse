@@ -74,9 +74,20 @@ pub const ENV_PERIOD: &str = "NETPULSE_PERIOD";
 ///
 /// This only describes the version of the [Store], not of [Netpulse](crate) itself.
 #[derive(
-    Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Copy, Clone, DeepSizeOf, PartialOrd, Ord,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Copy,
+    Clone,
+    DeepSizeOf,
+    PartialOrd,
+    Ord,
+    serde_repr::Serialize_repr,
+    serde_repr::Deserialize_repr,
 )]
 #[allow(missing_docs)] // It's just versions man
+#[repr(u8)]
 pub enum Version {
     V0 = 0,
     V1 = 1,
@@ -398,11 +409,10 @@ impl Store {
 
         let mut store: Store = bincode::deserialize_from(reader)?;
 
-        // TODO: somehow account for old versions that are not compatible with the store struct
         if store.version != Version::CURRENT {
             warn!("The store that was loaded is not of the current version: store has {} but the current version is {}", store.version, Version::CURRENT);
             if Version::SUPPROTED.contains(&store.version) {
-                warn!("The old store version is still supported, migrating to newer version");
+                warn!("The different store version is still supported, migrating to newer version");
                 warn!("Temp migration in memory, can be made permanent by saving");
 
                 while store.version < Version::CURRENT {
