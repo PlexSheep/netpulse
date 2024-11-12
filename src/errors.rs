@@ -92,6 +92,9 @@ pub enum StoreError {
     /// is not defined. Only known [Versions][crate::store::Version] are valid.
     #[error("Tried to load a store version that does not exist: {0}")]
     BadStoreVersion(u8),
+    /// A store can be loaded as readonly if it's corrupted or there is a version mismatch
+    #[error("Tried to save a readonly store")]
+    IsReadonly,
 }
 
 /// Errors that can occur during network checks.

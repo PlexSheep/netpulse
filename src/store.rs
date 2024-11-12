@@ -105,6 +105,9 @@ pub struct Store {
     version: Version,
     /// Collection of all recorded checks
     checks: Vec<Check>,
+    // if true, this store will never be saved
+    #[serde(skip)]
+    readonly: bool,
 }
 
 impl Display for Version {
@@ -207,6 +210,7 @@ impl Store {
         Self {
             version: Version::CURRENT,
             checks: Vec::new(),
+            readonly: false,
         }
     }
 
@@ -415,6 +419,11 @@ impl Store {
                 warn!("The different store version is still supported, migrating to newer version");
                 warn!("Temp migration in memory, can be made permanent by saving");
 
+                if store.version > Version::CURRENT {
+                    warn!("The store version is newer than this version of netpulse can normally handle! Trying to ignore potential differences and loading as READONLY!");
+                    store.readonly = true;
+                }
+
                 while store.version < Version::CURRENT {
                     for check in store.checks_mut().iter_mut() {
                         if let Err(e) = check.migrate(Version::V0) {
@@ -450,8 +459,12 @@ impl Store {
     /// - File doesn't exist
     /// - Write fails
     /// - Serialization fails
+    /// - Trying to save a readonly [Store]
     pub fn save(&self) -> Result<(), StoreError> {
         info!("Saving the store");
+        if self.readonly {
+            return Err(StoreError::IsReadonly);
+        }
         let file = match fs::File::options()
             .read(false)
             .write(true)
