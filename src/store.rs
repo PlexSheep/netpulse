@@ -70,7 +70,9 @@ pub const ENV_PATH: &str = "NETPULSE_STORE_PATH";
 /// supported by this version of Netpulse
 ///
 /// This only describes the version of the [Store], not of [Netpulse](crate) itself.
-#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Copy, Clone, DeepSizeOf)]
+#[derive(
+    Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Copy, Clone, DeepSizeOf, PartialOrd, Ord,
+)]
 pub struct Version {
     /// Raw version number as u8
     inner: u8,
@@ -109,16 +111,29 @@ impl From<Version> for u8 {
 
 impl Version {
     /// Current version of the store format
-    pub const CURRENT: Self = Version::new(1);
+    pub const CURRENT: Self = Self::V2;
 
     /// List of supported store format versions
     ///
     /// Used for compatibility checking when loading stores.
-    pub const SUPPROTED: &[Self] = &[Version::new(0), Version::new(1)];
+    pub const SUPPROTED: &[Self] = &[Self::V0, Self::V1, Self::V2];
+
+    pub const V0: Self = Version::new(0);
+    pub const V1: Self = Version::new(1);
+    pub const V2: Self = Version::new(2);
 
     /// Creates a new Version with the given raw version number
     pub(crate) const fn new(raw: u8) -> Self {
         Self { inner: raw }
+    }
+
+    pub fn next(&self) -> Option<Self> {
+        Some(match *self {
+            Self::V0 => Self::V1,
+            Self::V1 => Self::V2,
+            Self::V2 => return None,
+            _ => unreachable!("working with a version that does not exist"),
+        })
     }
 }
 
@@ -358,10 +373,24 @@ impl Store {
 
         // TODO: somehow account for old versions that are not compatible with the store struct
         if store.version != Version::CURRENT {
-            warn!("The store that was loaded is not of the current version:\nstore has {} but the current version is {}", store.version, Version::CURRENT);
+            warn!("The store that was loaded is not of the current version: store has {} but the current version is {}", store.version, Version::CURRENT);
             if Version::SUPPROTED.contains(&store.version) {
-                warn!("The old store version is still supported, migrating to newer version (in memory, can be made permanent by saving)");
-                store.version = Version::CURRENT;
+                warn!("The old store version is still supported, migrating to newer version");
+                warn!("Temp migration in memory, can be made permanent by saving");
+
+                while store.version < Version::CURRENT {
+                    for check in store.checks_mut().iter_mut() {
+                        if let Err(e) = check.migrate(Version::V0) {
+                            panic!("Error while migrating check '{}': {e}", check.get_hash());
+                        }
+                    }
+                    store.version = store
+                        .version
+                        .next()
+                        .expect("Somehow migrated to a version that does not exist");
+                }
+
+                assert_eq!(store.version, Version::CURRENT);
             } else {
                 error!("The store version is not supported");
                 return Err(StoreError::UnsupportedVersion);
@@ -426,7 +455,7 @@ impl Store {
     ///
     /// This determines how frequently the daemon performs checks.
     /// Currently fixed at 60 seconds.
-    pub const fn period_seconds(&self) -> u64 {
+    pub const fn period_seconds(&self) -> i64 {
         60
     }
 
@@ -518,6 +547,11 @@ impl Store {
     /// Returns the version of this [`Store`].
     pub fn version(&self) -> Version {
         self.version
+    }
+
+    /// Returns a mutable reference to the checks of this [`Store`].
+    pub fn checks_mut(&mut self) -> &mut Vec<Check> {
+        &mut self.checks
     }
 }
 

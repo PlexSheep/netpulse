@@ -41,9 +41,8 @@
 use std::fmt::{Display, Write};
 use std::hash::{Hash, Hasher};
 use std::net::IpAddr;
-use std::time::{self};
 
-use chrono::{DateTime, Local, TimeZone};
+use chrono::{DateTime, Local, TimeZone, Utc};
 use deepsize::DeepSizeOf;
 use flagset::{flags, FlagSet};
 use serde::{Deserialize, Serialize};
@@ -51,6 +50,7 @@ use tracing::error;
 
 use crate::common::fmt_timestamp;
 use crate::errors::StoreError;
+use crate::store::Version;
 
 /// Type of [IpAddr]
 ///
@@ -228,7 +228,7 @@ impl Display for CheckType {
 #[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Clone, Copy)]
 pub struct Check {
     /// Unix timestamp when check was performed (seconds since UNIX_EPOCH)
-    timestamp: u64,
+    timestamp: i64,
     /// Flags describing check type and result
     ///
     /// Stored as a bitset where each bit represents a [CheckFlag]
@@ -316,7 +316,7 @@ impl Check {
     }
 
     /// Returns the timestamp of this [`Check`].
-    pub fn timestamp(&self) -> u64 {
+    pub fn timestamp(&self) -> i64 {
         self.timestamp
     }
 
@@ -326,7 +326,7 @@ impl Check {
     /// timezones. The seconds since the UNIX_EPOCH (1970-01-01 00:00) are converted to a timestamp
     /// in UTC, and just for the formatting the timestamp is converted to the timezone of the user.
     pub fn timestamp_parsed(&self) -> chrono::DateTime<Local> {
-        let t: DateTime<Local> = Local.timestamp_opt(self.timestamp() as i64, 0).unwrap();
+        let t: DateTime<Local> = Local.timestamp_opt(self.timestamp(), 0).unwrap();
         t
     }
 
@@ -372,6 +372,16 @@ impl Check {
     /// The [IpType] that was used
     pub fn ip_type(&self) -> IpType {
         IpType::from(self.target)
+    }
+
+    /// Migrate a [Check] to the next [Version] that follows `current`
+    pub fn migrate(&mut self, current: Version) -> Result<(), StoreError> {
+        match current {
+            Version::V0 => (),
+            Version::V1 => self.timestamp = i64::from_ne_bytes(self.timestamp.to_ne_bytes()), // was originally u64
+            _ => unimplemented!("migrating from Version {current} is not yet imlpemented"),
+        }
+        Ok(())
     }
 }
 
@@ -432,6 +442,7 @@ pub fn display_group(group: &[&Check], f: &mut String) -> Result<(), std::fmt::E
 #[cfg(test)]
 mod test {
     use crate::TIMEOUT_MS;
+    use std::time; // no need to change it, since the api can work with both std and chrono now
 
     use super::*;
 
@@ -458,7 +469,7 @@ mod test {
         assert_eq!(
             c.deep_size_of(),
             std::mem::size_of::<IpAddr>() // self.target
-            + std::mem::size_of::<u64>() // self.timestamp
+            + std::mem::size_of::<i64>() // self.timestamp
             + std::mem::size_of::<u16>() // self.flags
             +3 /* latency */ + 2 // latency padding?
         );
@@ -471,7 +482,7 @@ mod test {
         assert_eq!(
             c1.deep_size_of(),
             std::mem::size_of::<IpAddr>() // self.target
-            + std::mem::size_of::<u64>() // self.timestamp
+            + std::mem::size_of::<i64>() // self.timestamp
             + std::mem::size_of::<u16>() // self.flags
             +3 /* latency */ + 2 // latency padding?
         );
@@ -484,7 +495,7 @@ mod test {
         assert_eq!(
             c2.deep_size_of(),
             std::mem::size_of::<IpAddr>() // self.target
-            + std::mem::size_of::<u64>() // self.timestamp
+            + std::mem::size_of::<i64>() // self.timestamp
             + std::mem::size_of::<u16>() // self.flags
             +3 /* latency */ + 2 // latency padding?
         )

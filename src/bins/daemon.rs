@@ -19,7 +19,6 @@
 //! 3. Logs any cleanup errors
 
 use std::sync::atomic::AtomicBool;
-use std::time::{self, Duration, UNIX_EPOCH};
 
 use netpulse::errors::RunError;
 use netpulse::records::display_group;
@@ -64,7 +63,7 @@ pub(crate) fn daemon() {
                 error!("error in the wakeup turn: {err}");
             }
         }
-        std::thread::sleep(Duration::from_secs(1));
+        std::thread::sleep(std::time::Duration::from_secs(1));
     }
 }
 
