@@ -43,11 +43,13 @@ use std::hash::{Hash, Hasher};
 use std::net::IpAddr;
 use std::time::{self};
 
+use chrono::{DateTime, Local, TimeZone};
 use deepsize::DeepSizeOf;
 use flagset::{flags, FlagSet};
 use serde::{Deserialize, Serialize};
 use tracing::error;
 
+use crate::common::fmt_timestamp;
 use crate::errors::StoreError;
 
 /// Type of [IpAddr]
@@ -326,8 +328,13 @@ impl Check {
     }
 
     /// Returns the timestamp of this [`Check`] as [SystemTime](std::time::SystemTime).
-    pub fn timestamp_parsed(&self) -> time::SystemTime {
-        time::UNIX_EPOCH + time::Duration::from_secs(self.timestamp())
+    ///
+    /// The [`Check`] structure stores just seconds since UNIX_EPOCH, which is agnostic of
+    /// timezones. The seconds since the UNIX_EPOCH (1970-01-01 00:00) are converted to a timestamp
+    /// in UTC, and just for the formatting the timestamp is converted to the timezone of the user.
+    pub fn timestamp_parsed(&self) -> chrono::DateTime<Local> {
+        let t: DateTime<Local> = Local.timestamp_opt(self.timestamp() as i64, 0).unwrap();
+        t
     }
 
     /// Returns a mutable reference to the flags of this [`Check`].
@@ -380,7 +387,7 @@ impl Display for Check {
         write!(
             f,
             "Time: {}\nType: {}\nOk: {}\nTarget: {}\nLatency: {}\nHash: {}",
-            humantime::format_rfc3339_seconds(self.timestamp_parsed()),
+            fmt_timestamp(self.timestamp_parsed()),
             self.calc_type().unwrap_or(CheckType::Unknown),
             self.is_success(),
             self.target,

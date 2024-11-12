@@ -31,6 +31,7 @@
 
 use deepsize::DeepSizeOf;
 
+use crate::common::fmt_timestamp;
 use crate::errors::AnalysisError;
 use crate::records::{Check, CheckType, IpType};
 use crate::store::Store;
@@ -86,14 +87,14 @@ impl Display for Outage<'_> {
             writeln!(
                 f,
                 "From {} To {}",
-                humantime::format_rfc3339_seconds(self.start.timestamp_parsed()),
-                humantime::format_rfc3339_seconds(self.end.unwrap().timestamp_parsed())
+                fmt_timestamp(self.start.timestamp_parsed()),
+                fmt_timestamp(self.end.unwrap().timestamp_parsed())
             )?;
         } else {
             writeln!(
                 f,
                 "From {} STILL ONGOING",
-                humantime::format_rfc3339_seconds(self.start.timestamp_parsed()),
+                fmt_timestamp(self.start.timestamp_parsed()),
             )?;
         }
         writeln!(f, "Checks: {}", self.all.len())?;
@@ -288,12 +289,12 @@ fn analyze_check_type_set(
     key_value_write(
         f,
         "first check at",
-        humantime::format_rfc3339_seconds(all.first().unwrap().timestamp_parsed()),
+        fmt_timestamp(all.first().unwrap().timestamp_parsed()),
     )?;
     key_value_write(
         f,
         "last check at",
-        humantime::format_rfc3339_seconds(all.last().unwrap().timestamp_parsed()),
+        fmt_timestamp(all.last().unwrap().timestamp_parsed()),
     )?;
     writeln!(f)?;
     Ok(())

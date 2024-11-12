@@ -33,18 +33,28 @@
 //!     println!("Daemon running with PID: {}", pid);
 //! }
 //! ```
-
 use std::io::{self, Write};
 use std::process::Command;
 use std::str::FromStr;
 
 use crate::DAEMON_PID_FILE;
+
+use chrono::{DateTime, Local};
 use getopts::Options;
 use tracing::{error, info, trace};
 use tracing_subscriber::FmtSubscriber;
 
 /// Environment variable name for configuring log level
 pub const ENV_LOG_LEVEL: &str = "NETPULSE_LOG_LEVEL";
+/// Formatting rules for timestamps that are easily readable by humans.
+///
+/// ```rust
+/// use chrono::{DateTime, Local};
+/// # use netpulse::common::TIME_FORMAT_HUMANS;
+/// let datetime: DateTime<Local> = Local::now();
+/// println!("it is now: {}", datetime.format(TIME_FORMAT_HUMANS));
+/// ```
+pub const TIME_FORMAT_HUMANS: &str = "%Y-%m-%d %H:%M:%S %Z";
 
 /// Ensures the program is running with root privileges.
 ///
@@ -260,4 +270,24 @@ pub fn getpid() -> Option<i32> {
         };
         Some(pid)
     }
+}
+
+/// Formats a [SystemTime](std::time::SystemTime) as an easily readable timestamp for humans.
+///
+/// Works with [std::time::SystemTime] and [chrono::DateTime<Local>].
+///
+/// # Examples
+///
+/// ```rust
+/// # use netpulse::common::fmt_timestamp;
+/// use std::time::SystemTime;
+/// use chrono;
+/// let datetime: SystemTime = SystemTime::now();
+/// println!("it is now: {}", fmt_timestamp(datetime));
+/// let datetime: chrono::DateTime<chrono::Local> = chrono::Local::now();
+/// println!("it is now: {}", fmt_timestamp(datetime));
+/// ```
+pub fn fmt_timestamp(timestamp: impl Into<DateTime<Local>>) -> String {
+    let a: chrono::DateTime<chrono::Local> = timestamp.into();
+    format!("{}", a.format(TIME_FORMAT_HUMANS))
 }
