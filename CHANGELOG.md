@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [0.6.1](https://github.com/PlexSheep/netpulse/compare/v0.6.0...v0.6.1)
+
+### 🚜 Refactor
+
+- *(records)* Default enable depends on enabled features - ([5561b09](https://github.com/PlexSheep/netpulse/commit/5561b09a10b806aff278546c8ada0ce025e1531c))
+- *(store)* Make checks in separate threads - ([0e6172a](https://github.com/PlexSheep/netpulse/commit/0e6172a9e5ad1a1539e0aa8fe251d2ac2620af46))
+
+### 📚 Documentation
+
+- *(api)* Fixes and documenting primitive_make_checks with mutlithreading - ([24618e0](https://github.com/PlexSheep/netpulse/commit/24618e0b3465f1e3a6d56ddb55d08eebc300785b))
+
+### ⚙️ Miscellaneous Tasks
+
+- Automatic Rust CI changes - ([4865faa](https://github.com/PlexSheep/netpulse/commit/4865faa49607503f6b1c299ec58967b2c8350685))
+- Clean up imports in store - ([e0b5f0a](https://github.com/PlexSheep/netpulse/commit/e0b5f0adbf65e3389df7a7258466d16e6d859689))
+
+
 ## [0.6.0](https://github.com/PlexSheep/netpulse/compare/v0.5.1...v0.6.0)
 
 ### ⛰️ Features
