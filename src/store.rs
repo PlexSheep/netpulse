@@ -23,10 +23,12 @@ use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
 use std::process::Command;
 use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 
 use deepsize::DeepSizeOf;
 use serde::{Deserialize, Serialize};
-use tracing::{error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
+use tracing_subscriber::fmt::writer::MutexGuardWriter;
 
 use crate::errors::StoreError;
 use crate::records::{Check, CheckType, TARGETS};
@@ -614,6 +616,8 @@ impl Store {
     ///
     /// Iterates through [CheckType::default_enabled] and [TARGETS] and creates a [Checks](Check).
     pub fn primitive_make_checks(buf: &mut Vec<Check>) {
+        let arcbuf = Arc::new(Mutex::new(Vec::new()));
+        let mut threads = Vec::new();
         for check_type in CheckType::default_enabled() {
             trace!("check type: {check_type}");
             if *check_type == CheckType::Icmp && !has_cap_net_raw() {
@@ -621,12 +625,24 @@ impl Store {
                 continue;
             }
             for target in TARGETS {
-                let check = check_type.make(
-                    std::net::IpAddr::from_str(target)
-                        .expect("a target constant was not an Ip Address"),
-                );
-                buf.push(check);
+                let thread_ab = arcbuf.clone();
+                threads.push(std::thread::spawn(move || {
+                    trace!("start thread for {target} with {check_type}");
+                    let check = check_type.make(
+                        std::net::IpAddr::from_str(target)
+                            .expect("a target constant was not an Ip Address"),
+                    );
+                    thread_ab.lock().expect("lock is poisoned").push(check);
+                    trace!("end thread for {target} with {check_type}");
+                }));
             }
+        }
+        for th in threads {
+            th.join().expect("could not join thread");
+        }
+        let abuf = arcbuf.lock().unwrap();
+        for check in abuf.iter() {
+            buf.push(*check);
         }
     }
 
