@@ -27,8 +27,7 @@ use std::sync::{Arc, Mutex};
 
 use deepsize::DeepSizeOf;
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, info, trace, warn};
-use tracing_subscriber::fmt::writer::MutexGuardWriter;
+use tracing::{error, info, trace, warn};
 
 use crate::errors::StoreError;
 use crate::records::{Check, CheckType, TARGETS};
