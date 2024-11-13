@@ -589,10 +589,9 @@ impl Store {
 
     /// Creates and adds checks for all configured targets.
     ///
-    /// Iterates through [CheckType::default_enabled] and [TARGETS] and creates a [Checks](Check).
+    /// Iterates through [CheckType::default_enabled] and [TARGETS] and makes the [Checks](Check).
     ///
-    /// Only HTTP checks are done for now, as ICMP needs `CAP_NET_RAW` and DNS is not yet
-    /// implemented.
+    /// Uses [Self::primitive_make_checks] under the hood, which starts a new thread per [Check].
     pub fn make_checks(&mut self) -> Vec<&Check> {
         let last_old = self
             .checks
@@ -612,9 +611,52 @@ impl Store {
         made_checks
     }
 
-    /// Creates and adds checks for all configured targets.
+    /// Creates [Checks](Check) for all configured targets in parallel.
     ///
-    /// Iterates through [CheckType::default_enabled] and [TARGETS] and creates a [Checks](Check).
+    /// Uses multiple threads to perform network checks simultaneously, improving overall
+    /// performance when multiple checks are IO-bound (waiting for network responses).
+    ///
+    /// # Implementation Details
+    ///
+    /// - Creates one thread per target/check-type combination
+    /// - Uses [`Arc<Mutex<Vec>>`] to collect results safely
+    /// - Joins all threads before returning
+    /// - Skips ICMP checks if CAP_NET_RAW capability is missing
+    ///
+    /// # Arguments
+    ///
+    /// * `buf` - Vector to store the created checks
+    ///
+    /// # Thread Safety
+    ///
+    /// - Thread-safe collection of results via [`Arc<Mutex>`]
+    /// - Waits for all threads to complete before returning
+    /// - Returns error if thread join fails or mutex is poisoned
+    ///
+    /// # Performance
+    ///
+    /// Creates `n * m` threads where:
+    /// - n = number of enabled check types
+    /// - m = number of targets
+    ///
+    /// Most efficient when checks are IO-bound (network latency dominated).
+    ///
+    /// # Panics
+    ///
+    /// Panics if:
+    /// - Thread join fails
+    /// - Mutex is poisoned
+    /// - Target IP address is invalid (should be impossible with constant targets)
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use netpulse::store::Store;
+    ///
+    /// let mut checks = Vec::new();
+    /// Store::primitive_make_checks(&mut checks);
+    /// println!("Created {} checks", checks.len());
+    /// ```
     pub fn primitive_make_checks(buf: &mut Vec<Check>) {
         let arcbuf = Arc::new(Mutex::new(Vec::new()));
         let mut threads = Vec::new();

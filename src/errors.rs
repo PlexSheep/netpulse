@@ -15,7 +15,7 @@
 //! use netpulse::errors::StoreError;
 //!
 //! fn load_store() -> Result<Store, StoreError> {
-//!     match Store::load() {
+//!     match Store::load(false) {
 //!         Ok(store) => Ok(store),
 //!         Err(StoreError::DoesNotExist) => Store::create(),
 //!         Err(e) => Err(e),
