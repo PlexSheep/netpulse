@@ -23,6 +23,7 @@ use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
 use std::process::Command;
 use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 
 use deepsize::DeepSizeOf;
 use serde::{Deserialize, Serialize};
@@ -587,10 +588,9 @@ impl Store {
 
     /// Creates and adds checks for all configured targets.
     ///
-    /// Iterates through [CheckType::default_enabled] and [TARGETS] and creates a [Checks](Check).
+    /// Iterates through [CheckType::default_enabled] and [TARGETS] and makes the [Checks](Check).
     ///
-    /// Only HTTP checks are done for now, as ICMP needs `CAP_NET_RAW` and DNS is not yet
-    /// implemented.
+    /// Uses [Self::primitive_make_checks] under the hood, which starts a new thread per [Check].
     pub fn make_checks(&mut self) -> Vec<&Check> {
         let last_old = self
             .checks
@@ -610,10 +610,55 @@ impl Store {
         made_checks
     }
 
-    /// Creates and adds checks for all configured targets.
+    /// Creates [Checks](Check) for all configured targets in parallel.
     ///
-    /// Iterates through [CheckType::default_enabled] and [TARGETS] and creates a [Checks](Check).
+    /// Uses multiple threads to perform network checks simultaneously, improving overall
+    /// performance when multiple checks are IO-bound (waiting for network responses).
+    ///
+    /// # Implementation Details
+    ///
+    /// - Creates one thread per target/check-type combination
+    /// - Uses [`Arc<Mutex<Vec>>`] to collect results safely
+    /// - Joins all threads before returning
+    /// - Skips ICMP checks if CAP_NET_RAW capability is missing
+    ///
+    /// # Arguments
+    ///
+    /// * `buf` - Vector to store the created checks
+    ///
+    /// # Thread Safety
+    ///
+    /// - Thread-safe collection of results via [`Arc<Mutex>`]
+    /// - Waits for all threads to complete before returning
+    /// - Returns error if thread join fails or mutex is poisoned
+    ///
+    /// # Performance
+    ///
+    /// Creates `n * m` threads where:
+    /// - n = number of enabled check types
+    /// - m = number of targets
+    ///
+    /// Most efficient when checks are IO-bound (network latency dominated).
+    ///
+    /// # Panics
+    ///
+    /// Panics if:
+    /// - Thread join fails
+    /// - Mutex is poisoned
+    /// - Target IP address is invalid (should be impossible with constant targets)
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use netpulse::store::Store;
+    ///
+    /// let mut checks = Vec::new();
+    /// Store::primitive_make_checks(&mut checks);
+    /// println!("Created {} checks", checks.len());
+    /// ```
     pub fn primitive_make_checks(buf: &mut Vec<Check>) {
+        let arcbuf = Arc::new(Mutex::new(Vec::new()));
+        let mut threads = Vec::new();
         for check_type in CheckType::default_enabled() {
             trace!("check type: {check_type}");
             if *check_type == CheckType::Icmp && !has_cap_net_raw() {
@@ -621,12 +666,24 @@ impl Store {
                 continue;
             }
             for target in TARGETS {
-                let check = check_type.make(
-                    std::net::IpAddr::from_str(target)
-                        .expect("a target constant was not an Ip Address"),
-                );
-                buf.push(check);
+                let thread_ab = arcbuf.clone();
+                threads.push(std::thread::spawn(move || {
+                    trace!("start thread for {target} with {check_type}");
+                    let check = check_type.make(
+                        std::net::IpAddr::from_str(target)
+                            .expect("a target constant was not an Ip Address"),
+                    );
+                    thread_ab.lock().expect("lock is poisoned").push(check);
+                    trace!("end thread for {target} with {check_type}");
+                }));
             }
+        }
+        for th in threads {
+            th.join().expect("could not join thread");
+        }
+        let abuf = arcbuf.lock().unwrap();
+        for check in abuf.iter() {
+            buf.push(*check);
         }
     }
 

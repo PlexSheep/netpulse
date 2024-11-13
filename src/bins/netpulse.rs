@@ -68,11 +68,9 @@ fn main() {
             error!("{e}");
             std::process::exit(1)
         }
-    } else {
-        if let Err(e) = analysis() {
-            error!("{e}");
-            std::process::exit(1)
-        }
+    } else if let Err(e) = analysis() {
+        error!("{e}");
+        std::process::exit(1)
     }
 }
 

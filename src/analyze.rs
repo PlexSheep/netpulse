@@ -16,7 +16,7 @@
 //! ```rust,no_run
 //! use netpulse::{store::Store, analyze};
 //!
-//! let store = Store::load().unwrap();
+//! let store = Store::load(true).unwrap();
 //! let report = analyze::analyze(&store).unwrap();
 //! println!("{}", report);
 //! ```
@@ -136,7 +136,7 @@ impl Display for Outage<'_> {
 /// ```rust,no_run
 /// use netpulse::{store::Store, analyze};
 ///
-/// let store = Store::load().unwrap();
+/// let store = Store::load(true).unwrap();
 /// let report = analyze::analyze(&store).unwrap();
 /// println!("{}", report);
 /// ```
