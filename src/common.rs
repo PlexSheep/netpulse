@@ -41,7 +41,7 @@ use std::str::FromStr;
 use crate::DAEMON_PID_FILE;
 
 use getopts::Options;
-use tracing::{error, info, trace};
+use tracing::{error, trace};
 use tracing_subscriber::FmtSubscriber;
 
 /// Environment variable name for configuring log level
