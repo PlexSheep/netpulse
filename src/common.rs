@@ -163,9 +163,12 @@ pub fn confirm(message: impl Display) -> bool {
 
 /// Executes a command and handles errors and output.
 ///
+/// Will ask the user to confirm if a command should be ran.
+///
 /// # Arguments
 ///
 /// * `cmd` - Command to execute
+/// * `skip_checks` - Do not confirm with the user if true
 ///
 /// # Exits
 ///
@@ -183,7 +186,7 @@ pub fn confirm(message: impl Display) -> bool {
 /// ```rust,no_run
 /// use std::process::Command;
 /// use netpulse::common::exec_cmd_for_user;
-/// exec_cmd_for_user(Command::new("systemctl").arg("daemon-reload"));
+/// exec_cmd_for_user(Command::new("systemctl").arg("daemon-reload"), false);
 /// ```
 pub fn exec_cmd_for_user(cmd: &mut Command, skip_checks: bool) {
     if !skip_checks || !confirm(format!("running cmd: {cmd:?}")) {
