@@ -116,6 +116,22 @@ fn setup_general(skip_checks: bool) -> Result<(), RunError> {
         return Ok(());
     }
 
+    // create netpulse user if it does not exist
+    if !nix::unistd::User::from_name(DAEMON_USER).is_ok_and(|o| o.is_some()) {
+        if skip_checks || confirm("create netpulse user?") {
+            trace!("trying to create a new user with useradd");
+            exec_cmd_for_user(
+                Command::new("useradd")
+                    .arg("--system")
+                    .arg("--shell")
+                    .arg("/sbin/nologin")
+                    .arg(DAEMON_USER),
+                skip_checks,
+            );
+        } else {
+            info!("user {DAEMON_USER} exists")
+        }
+    }
 
     // copying netpulsed to /usr/local/bin/
     let current_exe = std::env::current_exe()?;
