@@ -20,14 +20,13 @@
 //! - Info log: `/var/log/netpulse/info.log`
 //! - Error log: `/var/log/netpulse/error.log`
 
-use std::fs::{self, File};
+use std::fs;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
 
-use daemonize::Daemonize;
 use getopts::Options;
 use netpulse::common::{
     confirm, exec_cmd_for_user, getpid, getpid_running, init_logging, print_usage, root_guard,
@@ -35,7 +34,7 @@ use netpulse::common::{
 };
 use netpulse::errors::RunError;
 use netpulse::store::Store;
-use netpulse::{DAEMON_LOG_ERR, DAEMON_LOG_INF, DAEMON_PID_FILE, DAEMON_USER};
+use netpulse::{DAEMON_PID_FILE, DAEMON_USER};
 use nix::errno::Errno;
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
@@ -61,7 +60,6 @@ fn main() -> Result<(), RunError> {
     let mut opts = Options::new();
     opts.optflag("h", "help", "print this help menu");
     opts.optflag("V", "version", "print the version");
-    opts.optflag("s", "start", "start the netpulse daemon manually");
     opts.optflag(
         "u",
         "setup",
@@ -86,8 +84,6 @@ fn main() -> Result<(), RunError> {
         print_usage(program, opts);
     } else if matches.opt_present("version") {
         print_version()
-    } else if matches.opt_present("start") {
-        startd();
     } else if matches.opt_present("info") {
         infod();
     } else if matches.opt_present("setup") {
@@ -307,77 +303,6 @@ fn endd() {
     }
 }
 
-fn startd() {
-    root_guard();
-    setup_general(false).expect("setup failed");
-
-    let path = Store::path();
-    let parent_path = path.parent().expect("store file has no parent directory");
-    println!("Parent: {parent_path:?}");
-
-    let pid_path = PathBuf::from(DAEMON_PID_FILE);
-    let pid_parent_path = pid_path.parent().expect("pid file has no parent directory");
-    println!("Pid Parent: {pid_parent_path:?}");
-
-    let logfile = File::create(DAEMON_LOG_INF).expect("could not open info logfile");
-    let errfile = File::create(DAEMON_LOG_ERR).expect("could not open error logfile");
-
-    let user = nix::unistd::User::from_name(DAEMON_USER)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
-        .expect("could not get user for netpulse")
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "netpulse user not found"))
-        .expect("could not get user for netpulse");
-
-    fs::create_dir_all(parent_path).expect("could not create the store directory");
-    fs::create_dir_all(pid_parent_path).expect("could not create the pid directory");
-    std::os::unix::fs::chown(
-        pid_parent_path,
-        Some(user.uid.into()),
-        Some(user.gid.into()),
-    )
-    .expect("could not set permissions for the netpulse run directory");
-
-    // NOTE: Daemonize is the defacto standard way of becoming a daemon in rust (besides extra
-    // tools like systemd or writing it all yourself with nix or just the libc).
-    // Sadly, Daemonize just drops all capabilities when we become a daemon, including an important
-    // one: CAP_NET_RAW. This capability allows us to use raw sockets, which are required for
-    // things like ICMP (ping) messages.
-    // I have implemented ICMP checks, but the daemon drops the CAP_NET_RAW capability and then is
-    // no longer allowed to make the custom pings.
-    let daemonize = Daemonize::new()
-        .pid_file(pid_path)
-        .chown_pid_file(true)
-        .working_directory(parent_path)
-        .user("netpulse")
-        .group("netpulse")
-        .stdout(logfile)
-        .stderr(errfile)
-        .privileged_action(|| -> Result<(), RunError> {
-            Store::setup()?;
-            Ok(())
-        })
-        .umask(0o022); // rw-r--r--
-
-    println!("daemon setup done");
-
-    let outcome = daemonize.execute();
-    match outcome {
-        daemonize::Outcome::Parent(result) => {
-            if result.is_ok() {
-                println!("netpulsed was started",);
-            } else {
-                eprintln!("error while starting netpulsed: {}", result.unwrap_err());
-            }
-        }
-        daemonize::Outcome::Child(result) => {
-            if result.is_ok() {
-                daemon();
-            } else {
-                panic!("error while starting the daemon: {}", result.unwrap_err())
-            }
-        }
-    }
-}
 fn print_version() -> ! {
     println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
     std::process::exit(0)
