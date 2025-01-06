@@ -33,6 +33,7 @@
 //!     println!("Daemon running with PID: {}", pid);
 //! }
 //! ```
+use std::fmt::Display;
 use std::io::{self, Write};
 use std::process::Command;
 use std::str::FromStr;
@@ -141,7 +142,7 @@ pub fn init_logging(level: tracing::Level) {
 ///     println!("Operation cancelled");
 /// }
 /// ```
-pub fn confirm(message: &str) -> bool {
+pub fn confirm(message: impl Display) -> bool {
     // Print prompt and flush to ensure it's displayed before reading input
     print!("{} y/N: ", message);
     io::stdout().flush().unwrap();
