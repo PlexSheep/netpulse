@@ -39,7 +39,7 @@ use netpulse::{DAEMON_LOG_ERR, DAEMON_LOG_INF, DAEMON_PID_FILE, DAEMON_USER};
 use nix::errno::Errno;
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
-use tracing::{error, info};
+use tracing::{error, info, trace};
 
 mod daemon;
 use daemon::daemon;
@@ -92,7 +92,7 @@ fn main() -> Result<(), RunError> {
         infod();
     } else if matches.opt_present("setup") {
         root_guard();
-        if let Err(e) = setup_systemd() {
+        if let Err(e) = setup_systemd(false) {
             error!("While making the systemd setup: {e}");
             std::process::exit(1)
         }
@@ -111,7 +111,41 @@ fn main() -> Result<(), RunError> {
     Ok(())
 }
 
-fn setup_systemd() -> Result<(), RunError> {
+fn setup_general(skip_checks: bool) -> Result<(), RunError> {
+    if !skip_checks || !confirm("Perform general daemon setup?") {
+        return Ok(());
+    }
+
+    // create netpulse user if it does not exist
+    if !nix::unistd::User::from_name(DAEMON_USER).is_ok_and(|o| o.is_some()) {
+        if skip_checks || confirm("create netpulse user?") {
+            trace!("trying to create a new user with useradd");
+            exec_cmd_for_user(
+                Command::new("useradd")
+                    .arg("--system")
+                    .arg("--shell")
+                    .arg("/sbin/nologin")
+                    .arg(DAEMON_USER),
+                skip_checks,
+            );
+        } else {
+            info!("user {DAEMON_USER} exists")
+        }
+    }
+
+    // copying netpulsed to /usr/local/bin/
+    let current_exe = std::env::current_exe()?;
+    let target_path = format!("/usr/local/bin/{}", env!("CARGO_BIN_NAME"));
+    info!(
+        "copying the netpulsed executable from '{:?}' to '{target_path}'",
+        current_exe
+    );
+    fs::copy(current_exe, target_path)?;
+
+    Ok(())
+}
+
+fn setup_systemd(skip_checks: bool) -> Result<(), RunError> {
     let mut is_running: bool = getpid_running().is_some();
     info!("netpulsed is running: {is_running}");
     let mut stop_requested = false;
@@ -131,6 +165,7 @@ fn setup_systemd() -> Result<(), RunError> {
                 Command::new("systemctl")
                     .arg("stop")
                     .arg("netpulsed.service"),
+                skip_checks,
             );
             stop_requested = true;
             println!(
@@ -141,6 +176,8 @@ fn setup_systemd() -> Result<(), RunError> {
         is_running = getpid_running().is_some();
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
+
+    setup_general(skip_checks)?;
 
     // Create service file path
     let service_path = Path::new(SYSTEMD_SERVICE_PATH);
@@ -162,15 +199,6 @@ fn setup_systemd() -> Result<(), RunError> {
     perms.set_mode(0o644);
     fs::set_permissions(service_path, perms)?;
 
-    // copying netpulsed to /usr/local/bin/
-    let current_exe = std::env::current_exe()?;
-    let target_path = format!("/usr/local/bin/{}", env!("CARGO_BIN_NAME"));
-    info!(
-        "copying the netpulsed executable from '{:?}' to '{target_path}'",
-        current_exe
-    );
-    fs::copy(current_exe, target_path)?;
-
     info!("Created the netpulsed.service in '{SYSTEMD_SERVICE_PATH}'.");
     println!("To update the reload the daemon definitions, run the following as root:");
     println!("  systemctl daemon-reload");
@@ -183,16 +211,18 @@ fn setup_systemd() -> Result<(), RunError> {
         return Ok(());
     }
 
-    exec_cmd_for_user(Command::new("systemctl").arg("daemon-reload"));
+    exec_cmd_for_user(Command::new("systemctl").arg("daemon-reload"), skip_checks);
     exec_cmd_for_user(
         Command::new("systemctl")
             .arg("enable")
             .arg("netpulsed.service"),
+        skip_checks,
     );
     exec_cmd_for_user(
         Command::new("systemctl")
             .arg("restart")
             .arg("netpulsed.service"),
+        skip_checks,
     );
 
     Ok(())
@@ -277,6 +307,8 @@ fn endd() {
 
 fn startd() {
     root_guard();
+    setup_general(false).expect("setup failed");
+
     let path = Store::path();
     let parent_path = path.parent().expect("store file has no parent directory");
     println!("Parent: {parent_path:?}");

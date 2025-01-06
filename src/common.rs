@@ -33,6 +33,7 @@
 //!     println!("Daemon running with PID: {}", pid);
 //! }
 //! ```
+use std::fmt::Display;
 use std::io::{self, Write};
 use std::process::Command;
 use std::str::FromStr;
@@ -40,7 +41,7 @@ use std::str::FromStr;
 use crate::DAEMON_PID_FILE;
 
 use getopts::Options;
-use tracing::{error, info, trace};
+use tracing::{error, trace};
 use tracing_subscriber::FmtSubscriber;
 
 /// Environment variable name for configuring log level
@@ -141,7 +142,7 @@ pub fn init_logging(level: tracing::Level) {
 ///     println!("Operation cancelled");
 /// }
 /// ```
-pub fn confirm(message: &str) -> bool {
+pub fn confirm(message: impl Display) -> bool {
     // Print prompt and flush to ensure it's displayed before reading input
     print!("{} y/N: ", message);
     io::stdout().flush().unwrap();
@@ -162,9 +163,12 @@ pub fn confirm(message: &str) -> bool {
 
 /// Executes a command and handles errors and output.
 ///
+/// Will ask the user to confirm if a command should be ran.
+///
 /// # Arguments
 ///
 /// * `cmd` - Command to execute
+/// * `skip_checks` - Do not confirm with the user if true
 ///
 /// # Exits
 ///
@@ -182,10 +186,13 @@ pub fn confirm(message: &str) -> bool {
 /// ```rust,no_run
 /// use std::process::Command;
 /// use netpulse::common::exec_cmd_for_user;
-/// exec_cmd_for_user(Command::new("systemctl").arg("daemon-reload"));
+/// exec_cmd_for_user(Command::new("systemctl").arg("daemon-reload"), false);
 /// ```
-pub fn exec_cmd_for_user(cmd: &mut Command) {
-    info!("running cmd: {cmd:?}");
+pub fn exec_cmd_for_user(cmd: &mut Command, skip_checks: bool) {
+    if !skip_checks || !confirm(format!("running cmd: {cmd:?}")) {
+        trace!("returning early from exec_cmd_for_user because not confirmed");
+        return;
+    }
     let out = match cmd.output() {
         Err(e) => {
             error!("{e}");
