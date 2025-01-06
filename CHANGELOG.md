@@ -2,6 +2,33 @@
 
 ## [Unreleased]
 
+## [0.7.0](https://github.com/PlexSheep/netpulse/compare/v0.6.1...v0.7.0)
+
+### ⛰️ Features
+
+- *(common)* Impl to_string for Command - ([1ab1bd3](https://github.com/PlexSheep/netpulse/commit/1ab1bd32c764ee2cfcb505e26412a1638aafe1c6))
+- *(daemon)* Create user in setup #29 - ([00a223e](https://github.com/PlexSheep/netpulse/commit/00a223e5bc89ecb33f3bc9f3e54770d91a09ca98))
+
+### 🐛 Bug Fixes
+
+- *(daemon)* General setup was skipped, loglevel is now info - ([0b8fdd2](https://github.com/PlexSheep/netpulse/commit/0b8fdd2b61c0b29611eb5f13c29b874d3033fdd0))
+
+### 🚜 Refactor
+
+- *(daemon)* Remove daemonizing with daemonize crate #26 - ([bcaf732](https://github.com/PlexSheep/netpulse/commit/bcaf732f1c82d529e82adc52375f585182865255))
+- *(daemon)* Ask confirmation and combine setups a bit more - ([73216cc](https://github.com/PlexSheep/netpulse/commit/73216cc94c93755629b5f09980129e79f440a43f))
+- *(daemon)* Confirm takes any display argument - ([f384cae](https://github.com/PlexSheep/netpulse/commit/f384cae6f1a47c5b3d1015e8cb4f506f11366083))
+
+### 📚 Documentation
+
+- *(common)* Doctest now specifys skip_checks for exec_cmd_for_user example - ([55a3cee](https://github.com/PlexSheep/netpulse/commit/55a3ceea0688cb5221f43c9541bcf969b21464db))
+
+### ⚙️ Miscellaneous Tasks
+
+- Add a small docker test script - ([f2ebb1c](https://github.com/PlexSheep/netpulse/commit/f2ebb1c7bea2550d5be41af4f0b7515cd1c75513))
+- Automatic Rust CI changes - ([03d2ed5](https://github.com/PlexSheep/netpulse/commit/03d2ed59eb4818b5371a192d5bb0137d0ce1168f))
+
+
 ## [0.6.1](https://github.com/PlexSheep/netpulse/compare/v0.6.0...v0.6.1)
 
 ### 🚜 Refactor
