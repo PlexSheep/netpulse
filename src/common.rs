@@ -33,8 +33,8 @@
 //!     println!("Daemon running with PID: {}", pid);
 //! }
 //! ```
-use std::fmt::Display;
-use std::io::{self, Write};
+use std::fmt::{Display, Write};
+use std::io::{self, Write as _};
 use std::process::Command;
 use std::str::FromStr;
 
@@ -46,6 +46,39 @@ use tracing_subscriber::FmtSubscriber;
 
 /// Environment variable name for configuring log level
 pub const ENV_LOG_LEVEL: &str = "NETPULSE_LOG_LEVEL";
+
+/// a hacky way to make [Command] [Display]
+trait CommandExt {
+    fn parts(&self) -> Vec<&str>;
+    fn to_string(&self) -> String {
+        trace!("using custom to_string function");
+        let mut buf: String = String::new();
+        let parts = self.parts();
+        let len = parts.len();
+        for (idx, p) in parts.iter().enumerate() {
+            write!(buf, "{p}").expect("could not append to buffer");
+            if idx < len - 1 {
+                write!(buf, " ").expect("could not append to buffer");
+            }
+        }
+        buf
+    }
+}
+
+impl CommandExt for Command {
+    fn parts(&self) -> Vec<&str> {
+        let mut v: Vec<&str> = vec![self
+            .get_program()
+            .to_str()
+            .expect("program was not a proper string?")];
+        v.extend(
+            self.get_args()
+                .map(|a| a.to_str().expect("arg was not a proper string?")),
+        );
+
+        v
+    }
+}
 
 /// Ensures the program is running with root privileges.
 ///
@@ -189,7 +222,7 @@ pub fn confirm(message: impl Display) -> bool {
 /// exec_cmd_for_user(Command::new("systemctl").arg("daemon-reload"), false);
 /// ```
 pub fn exec_cmd_for_user(cmd: &mut Command, skip_checks: bool) {
-    if !skip_checks || !confirm(format!("running cmd: {cmd:?}")) {
+    if !skip_checks && !confirm(format!("running cmd: {}", cmd.to_string())) {
         trace!("returning early from exec_cmd_for_user because not confirmed");
         return;
     }
