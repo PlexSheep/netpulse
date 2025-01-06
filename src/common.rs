@@ -189,7 +189,7 @@ pub fn confirm(message: impl Display) -> bool {
 /// exec_cmd_for_user(Command::new("systemctl").arg("daemon-reload"), false);
 /// ```
 pub fn exec_cmd_for_user(cmd: &mut Command, skip_checks: bool) {
-    if !skip_checks || !confirm(format!("running cmd: {cmd:?}")) {
+    if !skip_checks && !confirm(format!("running cmd: {cmd:?}")) {
         trace!("returning early from exec_cmd_for_user because not confirmed");
         return;
     }

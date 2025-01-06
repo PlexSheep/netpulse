@@ -39,7 +39,7 @@ use netpulse::{DAEMON_LOG_ERR, DAEMON_LOG_INF, DAEMON_PID_FILE, DAEMON_USER};
 use nix::errno::Errno;
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
-use tracing::{error, info, trace};
+use tracing::{debug, error, info, trace};
 
 mod daemon;
 use daemon::daemon;
@@ -55,7 +55,7 @@ static USES_DAEMON_SYSTEM: AtomicBool = AtomicBool::new(false);
 
 fn main() -> Result<(), RunError> {
     setup_panic_handler();
-    init_logging(tracing::Level::DEBUG);
+    init_logging(tracing::Level::INFO);
     let args: Vec<String> = std::env::args().collect();
     let program = &args[0];
     let mut opts = Options::new();
@@ -112,7 +112,9 @@ fn main() -> Result<(), RunError> {
 }
 
 fn setup_general(skip_checks: bool) -> Result<(), RunError> {
-    if !skip_checks || !confirm("Perform general daemon setup?") {
+    debug!("starting general setup");
+    if !skip_checks && !confirm("Perform general daemon setup?") {
+        debug!("general setup skipped");
         return Ok(());
     }
 
@@ -211,18 +213,18 @@ fn setup_systemd(skip_checks: bool) -> Result<(), RunError> {
         return Ok(());
     }
 
-    exec_cmd_for_user(Command::new("systemctl").arg("daemon-reload"), skip_checks);
+    exec_cmd_for_user(Command::new("systemctl").arg("daemon-reload"), true);
     exec_cmd_for_user(
         Command::new("systemctl")
             .arg("enable")
             .arg("netpulsed.service"),
-        skip_checks,
+        true,
     );
     exec_cmd_for_user(
         Command::new("systemctl")
             .arg("restart")
             .arg("netpulsed.service"),
-        skip_checks,
+        true,
     );
 
     Ok(())
