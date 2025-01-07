@@ -35,7 +35,7 @@ use tracing::{error, trace};
 
 use crate::errors::AnalysisError;
 use crate::records::{display_group, Check, CheckType, IpType};
-use crate::store::{Store, DEFAULT_PERIOD, OUTAGE_TIME_SPAN};
+use crate::store::{Store, OUTAGE_TIME_SPAN};
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Write};
@@ -342,36 +342,23 @@ fn group_by_time<'check>(checks: &[&'check Check]) -> HashMap<i64, CheckGroup<'c
 }
 
 fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'check>> {
-    let by_time = group_by_time(checks);
-    let mut groups = Vec::new();
-    let mut processed_times = HashSet::new();
-    let window = DEFAULT_PERIOD * OUTAGE_TIME_SPAN;
+    let mut groups: Vec<CheckGroup<'check>> = Vec::new();
+    let mut checks: Vec<_> = checks.to_vec();
+    checks.sort();
 
-    for &time in by_time.keys() {
-        // Skip if we've already processed this time as part of another group
-        if processed_times.contains(&time) {
-            continue;
-        }
+    let mut in_group = false;
+    let mut current_group = Vec::new();
 
-        let mut current_group = Vec::new();
-
-        // Find all checks within the time window
-        let window_start = time.saturating_sub(window);
-        let window_end = time.saturating_add(window);
-
-        // Mark all times in this window as processed
-        for t in by_time.keys() {
-            if *t >= window_start && *t <= window_end && processed_times.insert(*t) {
-                // Only process if not already processed
-                if let Some(checks) = by_time.get(t) {
-                    current_group.extend(checks.iter().filter(|c| !c.is_success()).cloned());
-                }
-            }
-        }
-
-        if !current_group.is_empty() {
-            current_group.sort();
+    for c in checks {
+        if in_group && c.is_success() {
             groups.push(current_group);
+            current_group = Vec::new();
+            in_group = false;
+        } else if !c.is_success() {
+            if !in_group {
+                in_group = true;
+            }
+            current_group.push(c);
         }
     }
 
