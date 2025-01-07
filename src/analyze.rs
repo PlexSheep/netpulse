@@ -34,7 +34,7 @@ use deepsize::DeepSizeOf;
 use tracing::error;
 
 use crate::errors::AnalysisError;
-use crate::records::{display_group, indented_check, Check, CheckType, IpType};
+use crate::records::{display_group, Check, CheckType, IpType};
 use crate::store::Store;
 
 use std::fmt::{Display, Write};
