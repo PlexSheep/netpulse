@@ -89,9 +89,6 @@ flags! {
         /// The Check used HTTP/HTTPS
         TypeHTTP    =   0b0001_0000_0000_0000,
         /// Check type was ICMP (ping)
-        ///
-        /// Must be combined with either [IPv4](CheckFlag::IPv4) or [IPv6](CheckFlag::IPv6)
-        /// to determine the specific ICMP version used
         TypeIcmp    =   0b0100_0000_0000_0000,
         /// The Check used DNS
         TypeDns     =   0b1000_0000_0000_0000,
