@@ -37,7 +37,7 @@ use crate::errors::AnalysisError;
 use crate::records::{display_group, Check, CheckType, IpType};
 use crate::store::Store;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Write};
 use std::hash::Hash;
 use std::os::unix::fs::MetadataExt;
@@ -342,23 +342,50 @@ fn group_by_time<'check>(checks: &[&'check Check]) -> HashMap<i64, CheckGroup<'c
 }
 
 fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'check>> {
-    let mut groups: Vec<CheckGroup<'check>> = Vec::new();
-    let mut checks: Vec<_> = checks.to_vec();
-    checks.sort();
+    let by_time = group_by_time(checks);
+    let mut groups = Vec::new();
+    let mut processed_times: HashSet<i64> = HashSet::new();
 
-    let mut in_group = false;
-    let mut current_group = Vec::new();
+    for (time, current_checks) in by_time.iter() {
+        // Skip if we've already processed this time as part of another group
+        if processed_times.contains(time) {
+            continue;
+        }
+        // Skip if this check series did not fail
+        if current_checks.iter().all(|a| a.is_success()) {
+            continue;
+        }
 
-    for c in checks {
-        if in_group && c.is_success() {
-            groups.push(current_group);
-            current_group = Vec::new();
-            in_group = false;
-        } else if !c.is_success() {
-            if !in_group {
-                in_group = true;
+        let mut current_group = Vec::new();
+
+        let keys_after: Vec<&i64> = by_time.keys().filter(|v| **v > *time).collect();
+        let keys_before: Vec<&i64> = by_time.keys().filter(|v| **v <= *time).collect();
+
+        // find the start of the outage
+        for t in keys_before.iter().rev() {
+            let checks: &CheckGroup<'_> = &by_time[t];
+            if checks.iter().all(|a| a.is_success()) {
+                continue;
+            } else {
+                current_group.extend(checks);
+                processed_times.insert(**t);
             }
-            current_group.push(c);
+        }
+
+        // find the end of the outage
+        for t in keys_after.iter() {
+            let checks: &CheckGroup<'_> = &by_time[t];
+            if checks.iter().all(|a| a.is_success()) {
+                continue;
+            } else {
+                current_group.extend(checks);
+                processed_times.insert(**t);
+            }
+        }
+
+        if !current_group.is_empty() {
+            current_group.sort();
+            groups.push(current_group);
         }
     }
 
