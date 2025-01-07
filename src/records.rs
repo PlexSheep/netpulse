@@ -42,7 +42,7 @@ use std::fmt::{Display, Write};
 use std::hash::Hash;
 use std::net::IpAddr;
 
-use chrono::{DateTime, Local, TimeZone, Utc};
+use chrono::{DateTime, Local, TimeZone, Timelike, Utc};
 use deepsize::DeepSizeOf;
 use flagset::{flags, FlagSet};
 use serde::{Deserialize, Serialize};
@@ -310,7 +310,13 @@ impl Check {
         latency: Option<u16>,
         target: IpAddr,
     ) -> Self {
-        let t: DateTime<Utc> = time.into();
+        let mut t: DateTime<Utc> = time.into();
+        t = t
+            .with_second(0)
+            .expect("minute with second 0 does not exist");
+        t = t
+            .with_nanosecond(0)
+            .expect("minute with nanosecond 0 does not exist");
         Check {
             timestamp: t.timestamp(),
             flags: flags.into(),
