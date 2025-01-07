@@ -35,8 +35,9 @@ use tracing::{error, trace};
 
 use crate::errors::AnalysisError;
 use crate::records::{display_group, Check, CheckType, IpType};
-use crate::store::Store;
+use crate::store::{Store, DEFAULT_PERIOD, OUTAGE_TIME_SPAN};
 
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Write};
 use std::hash::Hash;
 use std::os::unix::fs::MetadataExt;
@@ -50,6 +51,8 @@ use std::os::unix::fs::MetadataExt;
 /// println!("it is now: {}", datetime.format(TIME_FORMAT_HUMANS));
 /// ```
 pub const TIME_FORMAT_HUMANS: &str = "%Y-%m-%d %H:%M:%S %Z";
+/// A group of [Checks](Check)
+pub type CheckGroup<'check> = Vec<&'check Check>;
 
 /// Represents a period of consecutive failed checks.
 ///
@@ -96,6 +99,7 @@ impl<'check> Outage<'check> {
         }
     }
 
+    /// Display information about that [Outage] in a short format
     pub fn short_report(&self) -> Result<String, std::fmt::Error> {
         let mut buf: String = String::new();
         if self.end.is_some() {
@@ -130,6 +134,15 @@ impl<'check> Outage<'check> {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+}
+
+impl<'check> From<CheckGroup<'check>> for Outage<'check> {
+    fn from(value: CheckGroup<'check>) -> Self {
+        if value.is_empty() {
+            panic!("tried to make an outage from an empty check group");
+        }
+        Outage::new(value.first().unwrap(), value.last().copied(), &value)
     }
 }
 
@@ -281,7 +294,7 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
             error!("empty outage group");
             continue;
         }
-        let outage = Outage::new(group.first().unwrap(), group.last().copied(), &group);
+        let outage = Outage::from(group);
         writeln!(f, "{outage_idx}:\t{}", &outage.short_report()?)?;
         if outage_idx > 9 {
             writeln!(f, "\nshowing only the 10 latest outages...")?;
@@ -309,7 +322,7 @@ pub fn outages_detailed(all: &[&Check], f: &mut String) -> Result<(), AnalysisEr
             error!("empty outage group");
             continue;
         }
-        let outage = Outage::new(group.first().unwrap(), group.last().copied(), &group);
+        let outage = Outage::from(group);
         writeln!(f, "{outage_idx}:\n{}", more_indent(&outage.to_string()))?;
     }
     writeln!(f)?;
@@ -317,53 +330,37 @@ pub fn outages_detailed(all: &[&Check], f: &mut String) -> Result<(), AnalysisEr
     Ok(())
 }
 
-/// Find groups of consecutive failed checks.
-///
-/// Groups are formed when:
-/// - Checks are consecutive by index
-/// - All checks in group are failures
-/// - Gap between groups is > 1 check
-fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<Vec<&'check Check>> {
-    let failed_idxs: Vec<usize> = checks
-        .iter()
-        .enumerate()
-        .filter(|(_idx, c)| !c.is_success())
-        .map(|(idx, _c)| idx)
-        .collect();
+/// Groups checks by time
+fn group_by_time<'check>(checks: &[&'check Check]) -> HashMap<i64, CheckGroup<'check>> {
+    let mut groups: HashMap<i64, CheckGroup<'check>> = HashMap::new();
 
-    if failed_idxs.is_empty() {
-        return Vec::new();
-    }
-
-    let mut groups: Vec<Vec<&Check>> = Vec::new();
-    let mut current_group: Vec<&Check> = Vec::new();
-
-    // Start with the first index
-    let mut last_idx = failed_idxs[0];
-    current_group.push(checks[last_idx]);
-
-    // Process remaining indices
-    for &idx in failed_idxs.iter().skip(1) {
-        if idx == last_idx + 1 {
-            // Consecutive failure, add to current group
-            current_group.push(checks[idx]);
-        } else {
-            // Gap found, start new group
-            if !current_group.is_empty() {
-                groups.push(current_group);
-                current_group = Vec::new();
-            }
-            current_group.push(checks[idx]);
-        }
-        last_idx = idx;
-    }
-
-    // Don't forget to add the last group
-    if !current_group.is_empty() {
-        groups.push(current_group);
+    for check in checks {
+        groups.entry(check.timestamp()).or_default().push(check);
     }
 
     groups
+}
+
+fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'check>> {
+    let by_time = group_by_time(checks);
+    let mut groups: HashSet<CheckGroup> = HashSet::new();
+    let mut group;
+    for key in by_time.keys() {
+        group = Vec::new();
+
+        for in_range_time in
+            key - (DEFAULT_PERIOD * OUTAGE_TIME_SPAN)..key + (DEFAULT_PERIOD * OUTAGE_TIME_SPAN)
+        {
+            if let Some(a) = by_time.get(&in_range_time).cloned() {
+                group.extend(a);
+            }
+        }
+
+        group.sort();
+        groups.insert(group);
+    }
+
+    groups.into_iter().collect()
 }
 
 /// Analyze metrics for a specific check type.
