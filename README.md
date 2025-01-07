@@ -128,56 +128,68 @@ The processed output of `netpulse` currently looks somewhat like this:
 
 ```txt
 ========== General =======================================
-checks                  : 00303088
-checks ok               : 00302357
+checks                  : 00303548
+checks ok               : 00302817
 checks bad              : 00000731
 success ratio           : 99.76%
 first check at          : 2024-11-09 00:38:00 +01:00
-last check at           : 2025-01-07 01:18:00 +01:00
+last check at           : 2025-01-07 03:13:00 +01:00
 
 ========== HTTP ==========================================
-checks                  : 00150190
-checks ok               : 00149890
+checks                  : 00150420
+checks ok               : 00150120
 checks bad              : 00000300
 success ratio           : 99.80%
 first check at          : 2024-11-09 00:38:00 +01:00
-last check at           : 2025-01-07 01:18:00 +01:00
+last check at           : 2025-01-07 03:13:00 +01:00
 
 ========== ICMP ==========================================
-checks                  : 00152898
-checks ok               : 00152467
+checks                  : 00153128
+checks ok               : 00152697
 checks bad              : 00000431
 success ratio           : 99.72%
 first check at          : 2024-11-09 03:19:00 +01:00
-last check at           : 2025-01-07 01:18:00 +01:00
+last check at           : 2025-01-07 03:13:00 +01:00
 
 ========== IPv4 ==========================================
-checks                  : 00151544
-checks ok               : 00151371
+checks                  : 00151774
+checks ok               : 00151601
 checks bad              : 00000173
 success ratio           : 99.89%
 first check at          : 2024-11-09 00:38:00 +01:00
-last check at           : 2025-01-07 01:18:00 +01:00
+last check at           : 2025-01-07 03:13:00 +01:00
 
 ========== IPv6 ==========================================
-checks                  : 00151544
-checks ok               : 00150986
+checks                  : 00151774
+checks ok               : 00151216
 checks bad              : 00000558
 success ratio           : 99.63%
 first check at          : 2024-11-09 00:38:00 +01:00
-last check at           : 2025-01-07 01:18:00 +01:00
+last check at           : 2025-01-07 03:13:00 +01:00
 
 ========== Outages =======================================
-None
+0:	From 2025-01-06 14:35:00 +01:00 To (None), Total 1
+1:	From 2025-01-06 14:35:00 +01:00 To (None), Total 1
+2:	From 2025-01-06 11:14:00 +01:00 To (None), Total 1
+3:	From 2025-01-06 11:14:00 +01:00 To (None), Total 1
+4:	From 2025-01-05 09:45:00 +01:00 To (None), Total 1
+5:	From 2025-01-05 09:45:00 +01:00 To (None), Total 1
+6:	From 2025-01-05 09:42:00 +01:00 To 2025-01-05 09:42:00 +01:00, Total 2
+7:	From 2025-01-05 01:13:00 +01:00 To (None), Total 1
+8:	From 2025-01-05 01:13:00 +01:00 To (None), Total 1
+9:	From 2025-01-04 14:42:00 +01:00 To (None), Total 1
+10:	From 2025-01-04 14:42:00 +01:00 To (None), Total 1
+
+showing only the 10 latest outages...
 
 ========== Store Metadata ================================
-Hash mem blake3         : a4a4a6e3fac92ecce6e2e11a82d6b22552ad373ec49086007263d770aa36158d
-Hash file sha256        : 804cc9de8714dd19d732fafd54fb4fe188e7053fa24434810fbd86f86cee0fcb
+Hash mem blake3         : 8eacb2853d44d141d82d3b8232c27edb530df6add5a40b4370facb0b634ade3d
+Hash file sha256        : 67c30c020f176615fb9956126ad9b27c69d556870f17fa6cadd37962be33258d
 Store Version (mem)     : 2
 Store Version (file)    : 2
 Store Size (mem)        : 16777248
-Store Size (file)       : 1112087
-File to Mem Ratio       : 0.06628542416491667
+Store Size (file)       : 1113762
+File to Mem Ratio       : 0.06638526175449036
 ```
 
 ### Updating
@@ -210,6 +222,13 @@ sudo systemctl restart netpulsed.service
 - `/var/lib/netpulse/netpuse.store` – the database where your checks are stored
 - `/var/log/netpulse.log` – contains the stdout of the daemon
 - `/var/log/netpulse.err` – contains the stderr of the daemon
+
+**Storage Requirement of the Store**
+
+Netpulse has been running for almost three months on my homeserver now. The
+server shuts down over night usually for about 6 hours. Other than that, it
+performs the six default checks every 60 seconds. My store file has in that time
+grown to 1.1 MB. ZSTD compression and encoding does a lot here.
 
 ### Targets
 
