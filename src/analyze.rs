@@ -31,7 +31,7 @@
 
 use chrono::{DateTime, Local};
 use deepsize::DeepSizeOf;
-use tracing::error;
+use tracing::{error, trace};
 
 use crate::errors::AnalysisError;
 use crate::records::{display_group, Check, CheckType, IpType};
@@ -84,6 +84,11 @@ impl<'check> Outage<'check> {
         end: Option<&'check Check>,
         all_checks: &[&'check Check],
     ) -> Self {
+        {
+            let mut f = String::new();
+            display_group(all_checks, &mut f).expect("could not dump checks");
+            trace!("dumping outage at creation: {f}",);
+        }
         Self {
             start,
             end: if Some(start) == end { None } else { end },
