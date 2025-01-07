@@ -29,8 +29,12 @@ fn main() {
     opts.optflag("h", "help", "print this help menu");
     opts.optflag("V", "version", "print the version");
     opts.optflag("t", "test", "test run all checks");
+    opts.optflag(
+        "o",
+        "outages",
+        "print out all outages, use --dump to show all contained",
+    );
     opts.optflag("d", "dump", "print out all checks");
-    opts.optflag("o", "outages", "print out all outages");
     opts.optflag(
         "r",
         "rewrite",
@@ -54,18 +58,18 @@ fn main() {
     if matches.opt_present("version") {
         print_version()
     }
-    if matches.opt_present("dump") {
+    if matches.opt_present("outages") {
+        if let Err(e) = print_outages(None, matches.opt_present("dump")) {
+            error!("{e}");
+            std::process::exit(1)
+        }
+    } else if matches.opt_present("dump") {
         if let Err(e) = dump(failed_only) {
             error!("{e}");
             std::process::exit(1)
         }
     } else if matches.opt_present("test") {
         if let Err(e) = test_checks() {
-            error!("{e}");
-            std::process::exit(1)
-        }
-    } else if matches.opt_present("outages") {
-        if let Err(e) = print_outages(None) {
             error!("{e}");
             std::process::exit(1)
         }
@@ -90,7 +94,7 @@ fn test_checks() -> Result<(), RunError> {
     Ok(())
 }
 
-fn print_outages(latest: Option<usize>) -> Result<(), RunError> {
+fn print_outages(latest: Option<usize>, dump: bool) -> Result<(), RunError> {
     let store = Store::load(true)?;
     let mut buf = String::new();
     let ref_checks: Vec<&Check> = if let Some(limit) = latest {
@@ -98,7 +102,7 @@ fn print_outages(latest: Option<usize>) -> Result<(), RunError> {
     } else {
         store.checks().iter().collect()
     };
-    if let Err(e) = outages_detailed(&ref_checks, &mut buf) {
+    if let Err(e) = outages_detailed(&ref_checks, &mut buf, dump) {
         eprintln!("{e}");
         std::process::exit(1);
     }

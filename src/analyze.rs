@@ -81,11 +81,10 @@ impl<'check> Outage<'check> {
         {
             let mut f = String::new();
             display_group(all_checks, &mut f).expect("could not dump checks");
-            trace!("dumping outage at creation: {f}",);
         }
-        Self {
-            all: all_checks.to_vec(),
-        }
+        let mut all = all_checks.to_vec();
+        all.sort();
+        Self { all }
     }
 
     pub fn last(&self) -> Option<&Check> {
@@ -286,7 +285,7 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
 ///
 /// Groups consecutive failed checks by check type and creates
 /// Outage records for reporting. This is the more detailed version of [outages]
-pub fn outages_detailed(all: &[&Check], f: &mut String) -> Result<(), AnalysisError> {
+pub fn outages_detailed(all: &[&Check], f: &mut String, dump: bool) -> Result<(), AnalysisError> {
     let fails_exist = !all.iter().all(|c| c.is_success());
     if !fails_exist || all.is_empty() {
         writeln!(f, "None\n")?;
@@ -301,6 +300,11 @@ pub fn outages_detailed(all: &[&Check], f: &mut String) -> Result<(), AnalysisEr
         }
         let outage = Outage::from(group);
         writeln!(f, "{outage_idx}:\n{}", more_indent(&outage.to_string()))?;
+        if dump {
+            let mut buf = String::new();
+            display_group(&outage.all, &mut buf)?;
+            writeln!(f, "\tAll contained:\n{}", more_indent(&buf))?;
+        }
     }
     writeln!(f)?;
 
@@ -320,22 +324,23 @@ fn group_by_time<'check>(checks: &[&'check Check]) -> HashMap<i64, CheckGroup<'c
 fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'check>> {
     trace!("calculating fail groups");
     let mut groups: Vec<CheckGroup<'check>> = Vec::new();
-    let mut checks: Vec<_> = checks.to_vec();
-    checks.sort();
+    let by_time = group_by_time(checks);
 
     let mut in_group = false;
     let mut current_group = Vec::new();
 
-    for c in checks {
-        if in_group && c.is_success() {
-            groups.push(current_group);
-            current_group = Vec::new();
-            in_group = false;
-        } else if !c.is_success() {
+    for checks in by_time.values() {
+        if !checks.iter().all(|a| a.is_success()) {
             if !in_group {
                 in_group = true;
             }
-            current_group.push(c);
+            current_group.extend(checks);
+        } else if in_group && checks.iter().all(|a| a.is_success()) {
+            // end of the outage
+
+            in_group = false;
+            groups.push(current_group);
+            current_group = Vec::new();
         }
     }
 
