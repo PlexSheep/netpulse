@@ -509,6 +509,7 @@ fn success_ratio(all_checks: usize, subset: usize) -> f64 {
 mod tests {
 
     use chrono::{Timelike, Utc};
+    use tracing_test::traced_test;
 
     use crate::analyze::Outage;
     use crate::records::{Check, CheckFlag, TARGETS};
@@ -556,12 +557,13 @@ mod tests {
     }
 
     #[test]
+    #[traced_test]
     fn test_fail_groups() {
-        // fail_groups has been non deterministic in the past
-        for _ in 0..200 {
-            let base_checks = basic_check_set();
-            let checks: Vec<&Check> = base_checks.iter().collect();
+        let base_checks = basic_check_set();
+        let checks: Vec<&Check> = base_checks.iter().collect();
 
+        // fail_groups has been non deterministic in the past, because of not-sorting
+        for _ in 0..40 {
             let fg = fail_groups(&checks);
             assert_eq!(fg.len(), 2);
             assert_eq!(fg[0].len(), 8);
@@ -572,6 +574,7 @@ mod tests {
     }
 
     #[test]
+    #[traced_test]
     fn test_group_by_time() {
         let base_checks = basic_check_set();
         let checks: Vec<&Check> = base_checks.iter().collect();

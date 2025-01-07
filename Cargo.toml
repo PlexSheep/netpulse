@@ -52,3 +52,6 @@ all-features = true
 [profile.profiling]
 inherits = "release"
 debug = true
+
+[dev-dependencies]
+tracing-test = "0.2.5"
