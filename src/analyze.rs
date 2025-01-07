@@ -296,7 +296,7 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
         }
         let outage = Outage::from(group);
         writeln!(f, "{outage_idx}:\t{}", &outage.short_report()?)?;
-        if outage_idx > 9 {
+        if outage_idx >= 9 {
             writeln!(f, "\nshowing only the 10 latest outages...")?;
             break;
         }
