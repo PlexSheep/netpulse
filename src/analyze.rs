@@ -335,11 +335,13 @@ fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'check>> {
     trace!("calculating fail groups");
     let mut groups: Vec<CheckGroup<'check>> = Vec::new();
     let by_time = group_by_time(checks);
+    let mut time_sorted_values: Vec<&Vec<&Check>> = by_time.values().collect();
+    time_sorted_values.sort();
 
     let mut in_group = false;
     let mut current_group: Vec<&Check> = Vec::new();
 
-    for checks in by_time.values() {
+    for checks in time_sorted_values {
         let ok = checks.iter().all(|a| a.is_success());
         if !ok {
             if !in_group {
@@ -353,6 +355,11 @@ fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'check>> {
             groups.push(current_group);
             current_group = Vec::new();
         }
+    }
+
+    // finishing up, some might be left over
+    if in_group {
+        groups.push(current_group);
     }
 
     groups.sort();
