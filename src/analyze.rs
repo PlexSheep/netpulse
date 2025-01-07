@@ -39,8 +39,11 @@ use crate::store::Store;
 
 use std::collections::HashMap;
 use std::fmt::{Display, Write};
-use std::hash::Hash;
 use std::os::unix::fs::MetadataExt;
+
+use self::outage::Outage;
+
+pub mod outage;
 
 /// Formatting rules for timestamps that are easily readable by humans.
 ///
@@ -53,122 +56,6 @@ use std::os::unix::fs::MetadataExt;
 pub const TIME_FORMAT_HUMANS: &str = "%Y-%m-%d %H:%M:%S %Z";
 /// A group of [Checks](Check)
 pub type CheckGroup<'check> = Vec<&'check Check>;
-
-/// Represents a period of consecutive failed checks.
-///
-/// An outage is defined by:
-/// - A start check that failed
-/// - An optional end check (None if outage is ongoing)
-/// - All failed checks during the outage period
-///
-/// This struct helps track and analyze network connectivity issues
-/// over time.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct Outage<'check> {
-    /// All checks that failed during this outage period
-    all: Vec<&'check Check>,
-}
-
-impl<'check> Outage<'check> {
-    /// Creates a new outage from its constituent checks.
-    ///
-    /// # Arguments
-    ///
-    /// * `start` - The first failed check
-    /// * `end` - Optional last failed check (None if ongoing)
-    /// * `all_checks` - Slice of all failed checks in this period
-    pub(crate) fn new(all_checks: &[&'check Check]) -> Self {
-        {
-            let mut f = String::new();
-            display_group(all_checks, &mut f).expect("could not dump checks");
-        }
-        let mut all = all_checks.to_vec();
-        all.sort();
-        Self { all }
-    }
-
-    pub fn last(&self) -> Option<&Check> {
-        self.all.last().copied()
-    }
-
-    pub fn first(&self) -> Option<&Check> {
-        self.all.first().copied()
-    }
-
-    /// Display information about that [Outage] in a short format
-    pub fn short_report(&self) -> Result<String, std::fmt::Error> {
-        if self.is_empty() {
-            error!("Outage does not contain any checks");
-        }
-        let mut buf: String = String::new();
-        write!(
-            &mut buf,
-            "From {}",
-            fmt_timestamp(self.first().unwrap().timestamp_parsed()),
-        )?;
-        write!(
-            &mut buf,
-            " To {}",
-            fmt_timestamp(self.last().unwrap().timestamp_parsed()),
-        )?;
-        write!(&mut buf, ", Total {}", self.len())?;
-        Ok(buf)
-    }
-
-    /// Returns the length of this [`Outage`].
-    pub fn len(&self) -> usize {
-        self.all.len()
-    }
-
-    /// Returns true if this [`Outage`] is empty.
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-}
-
-impl<'check> From<&'check [Check]> for Outage<'check> {
-    fn from(value: &'check [Check]) -> Self {
-        if value.is_empty() {
-            panic!("tried to make an outage from an empty check group");
-        }
-        let a: Vec<&Check> = value.iter().collect();
-        Outage::new(&a)
-    }
-}
-
-impl<'check> From<CheckGroup<'check>> for Outage<'check> {
-    fn from(value: CheckGroup<'check>) -> Self {
-        if value.is_empty() {
-            panic!("tried to make an outage from an empty check group");
-        }
-        Outage::new(&value)
-    }
-}
-
-impl Display for Outage<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.is_empty() {
-            error!("Outage does not contain any checks");
-        }
-        let mut buf: String = String::new();
-        key_value_write(
-            &mut buf,
-            "From",
-            fmt_timestamp(self.first().unwrap().timestamp_parsed()),
-        )?;
-        key_value_write(
-            &mut buf,
-            "To",
-            fmt_timestamp(self.last().unwrap().timestamp_parsed()),
-        )?;
-        key_value_write(&mut buf, "Total", self.len())?;
-        writeln!(buf, "\nFirst\n{}", self.last().unwrap())?;
-        writeln!(buf, "\nLast\n{}", self.last().unwrap())?;
-        write!(f, "{buf}")?;
-        Ok(())
-    }
-}
 
 fn more_indent(buf: &str) -> String {
     format!("\t{}", buf.to_string().replace("\n", "\n\t"))
@@ -312,7 +199,7 @@ pub fn outages_detailed(all: &[&Check], f: &mut String, dump: bool) -> Result<()
         writeln!(f, "{outage_idx}:\n{}", more_indent(&outage.to_string()))?;
         if dump {
             let mut buf = String::new();
-            display_group(&outage.all, &mut buf)?;
+            display_group(outage.all(), &mut buf)?;
             writeln!(f, "\tAll contained:\n{}", more_indent(&buf))?;
         }
     }
