@@ -283,8 +283,8 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
         }
         let outage = Outage::new(group.first().unwrap(), group.last().copied(), &group);
         writeln!(f, "{outage_idx}:\t{}", &outage.short_report()?)?;
-        if outage_idx > 10 {
-            writeln!(f, "showing only the 10 latest outages")?;
+        if outage_idx > 9 {
+            writeln!(f, "\nshowing only the 10 latest outages...")?;
             break;
         }
     }
