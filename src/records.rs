@@ -462,6 +462,10 @@ pub fn display_group(group: &[&Check], f: &mut String) -> Result<(), std::fmt::E
     Ok(())
 }
 
+pub(crate) fn indented_check(buf: &mut String, check: &Check) -> Result<(), std::fmt::Error> {
+    writeln!(buf, "\t{}", check.to_string().replace("\n", "\n\t"))
+}
+
 #[cfg(test)]
 mod test {
     use crate::TIMEOUT_MS;

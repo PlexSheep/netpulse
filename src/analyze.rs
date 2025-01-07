@@ -31,9 +31,10 @@
 
 use chrono::{DateTime, Local};
 use deepsize::DeepSizeOf;
+use tracing::error;
 
 use crate::errors::AnalysisError;
-use crate::records::{Check, CheckType, IpType};
+use crate::records::{display_group, indented_check, Check, CheckType, IpType};
 use crate::store::Store;
 
 use std::fmt::{Display, Write};
@@ -85,36 +86,55 @@ impl<'check> Outage<'check> {
     ) -> Self {
         Self {
             start,
-            end,
+            end: if Some(start) == end { None } else { end },
             all: all_checks.to_vec(),
         }
+    }
+
+    /// Returns the length of this [`Outage`].
+    pub fn len(&self) -> usize {
+        self.all.len()
+    }
+
+    /// Returns true if this [`Outage`] is empty.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
 impl Display for Outage<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut buf: String = String::new();
         if self.end.is_some() {
-            writeln!(
-                f,
-                "From {} To {}",
-                fmt_timestamp(self.start.timestamp_parsed()),
-                fmt_timestamp(self.end.unwrap().timestamp_parsed())
+            key_value_write(
+                &mut buf,
+                "From",
+                fmt_timestamp(self.end.unwrap().timestamp_parsed()),
+            )?;
+            key_value_write(
+                &mut buf,
+                "To",
+                fmt_timestamp(self.end.unwrap().timestamp_parsed()),
             )?;
         } else {
-            writeln!(
-                f,
-                "From {} STILL ONGOING",
+            key_value_write(
+                &mut buf,
+                "From",
                 fmt_timestamp(self.start.timestamp_parsed()),
             )?;
+            key_value_write(&mut buf, "To", "(None)")?;
         }
-        writeln!(f, "Checks: {}", self.all.len())?;
-        writeln!(
-            f,
-            "Type: {}",
-            self.start.calc_type().unwrap_or(CheckType::Unknown)
-        )?;
+        key_value_write(&mut buf, "Total", self.len())?;
+        writeln!(buf, "\nDetails")?;
+        display_group(&self.all, &mut buf)?;
+        write!(f, "{buf}")?;
         Ok(())
     }
+}
+
+fn more_indent(buf: &str) -> String {
+    format!("\t{}", buf.to_string().replace("\n", "\n\t"))
 }
 
 /// Generate a comprehensive analysis report for the given store.
@@ -205,44 +225,42 @@ fn key_value_write(
     writeln!(f, "{:<24}: {}", title, content)
 }
 
+/// Writes a key-value pair to the report in aligned columns.
+///
+/// Format: `<key>: <value>`
+fn key_value_write_indented(
+    f: &mut String,
+    title: &str,
+    content: impl Display,
+) -> Result<(), std::fmt::Error> {
+    writeln!(f, "        {:<16}: {}", title, content)
+}
+
 /// Analyzes and formats outage information from the store.
 ///
 /// Groups consecutive failed checks by check type and creates
 /// Outage records for reporting.
 fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     let all_checks: Vec<&Check> = store.checks().iter().collect();
-    let mut outages: Vec<Outage> = Vec::new();
-    let fails_exist = all_checks
-        .iter()
-        .fold(true, |fails_exist, c| fails_exist & !c.is_success());
+    let fails_exist = !all_checks.iter().all(|c| c.is_success());
     if !fails_exist || all_checks.is_empty() {
         writeln!(f, "None\n")?;
         return Ok(());
     }
 
-    for check_type in CheckType::all() {
-        let checks: Vec<&&Check> = all_checks
-            .iter()
-            .filter(|c| c.calc_type().unwrap_or(CheckType::Unknown) == *check_type)
-            .collect();
+    let failed_checks: Vec<&&Check> = all_checks.iter().filter(|c| !c.is_success()).collect();
 
-        let fail_groups = fail_groups(&checks);
-        for group in fail_groups {
-            // writeln!(f, "Group {gidx}:")?;
-            // display_group(group, f)?;
-            if !group.is_empty() {
-                outages.push(Outage::new(
-                    checks.first().unwrap(),
-                    Some(checks.last().unwrap()),
-                    &group,
-                ));
-            }
+    let fail_groups = fail_groups(&failed_checks);
+    for (outage_idx, group) in fail_groups.into_iter().enumerate() {
+        if group.is_empty() {
+            error!("empty outage group");
+            continue;
         }
+        let outage = Outage::new(group.first().unwrap(), group.last().copied(), &group);
+        writeln!(f, "{outage_idx}:\n{}", more_indent(&outage.to_string()))?;
     }
+    writeln!(f)?;
 
-    for outage in outages {
-        writeln!(f, "{outage}")?;
-    }
     Ok(())
 }
 
