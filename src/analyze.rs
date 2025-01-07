@@ -375,6 +375,7 @@ fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'check>> {
         }
     }
 
+    groups.sort();
     groups
 }
 
