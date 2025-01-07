@@ -31,9 +31,10 @@
 
 use chrono::{DateTime, Local};
 use deepsize::DeepSizeOf;
+use tracing::{error, trace};
 
 use crate::errors::AnalysisError;
-use crate::records::{Check, CheckType, IpType};
+use crate::records::{display_group, Check, CheckType, IpType};
 use crate::store::Store;
 
 use std::fmt::{Display, Write};
@@ -83,38 +84,95 @@ impl<'check> Outage<'check> {
         end: Option<&'check Check>,
         all_checks: &[&'check Check],
     ) -> Self {
+        {
+            let mut f = String::new();
+            display_group(all_checks, &mut f).expect("could not dump checks");
+            trace!("dumping outage at creation: {f}",);
+        }
         Self {
             start,
-            end,
+            end: if Some(start) == end { None } else { end },
             all: all_checks.to_vec(),
         }
+    }
+
+    pub fn short_report(&self) -> Result<String, std::fmt::Error> {
+        let mut buf: String = String::new();
+        if self.end.is_some() {
+            write!(
+                &mut buf,
+                "From {}",
+                fmt_timestamp(self.start.timestamp_parsed()),
+            )?;
+            write!(
+                &mut buf,
+                " To {}",
+                fmt_timestamp(self.end.unwrap().timestamp_parsed()),
+            )?;
+        } else {
+            write!(
+                &mut buf,
+                "From {}",
+                fmt_timestamp(self.start.timestamp_parsed()),
+            )?;
+            write!(&mut buf, " To (None)")?;
+        }
+        write!(&mut buf, ", Total {}", self.len())?;
+        Ok(buf)
+    }
+
+    /// Returns the length of this [`Outage`].
+    pub fn len(&self) -> usize {
+        self.all.len()
+    }
+
+    /// Returns true if this [`Outage`] is empty.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
 impl Display for Outage<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut buf: String = String::new();
         if self.end.is_some() {
-            writeln!(
-                f,
-                "From {} To {}",
+            key_value_write(
+                &mut buf,
+                "From",
                 fmt_timestamp(self.start.timestamp_parsed()),
-                fmt_timestamp(self.end.unwrap().timestamp_parsed())
+            )?;
+            key_value_write(
+                &mut buf,
+                "To",
+                fmt_timestamp(self.end.unwrap().timestamp_parsed()),
             )?;
         } else {
-            writeln!(
-                f,
-                "From {} STILL ONGOING",
+            key_value_write(
+                &mut buf,
+                "From",
                 fmt_timestamp(self.start.timestamp_parsed()),
             )?;
+            key_value_write(&mut buf, "To", "(None)")?;
         }
-        writeln!(f, "Checks: {}", self.all.len())?;
+        key_value_write(&mut buf, "Total", self.len())?;
+        writeln!(buf, "\nFirst\n{}", self.start)?;
         writeln!(
-            f,
-            "Type: {}",
-            self.start.calc_type().unwrap_or(CheckType::Unknown)
+            buf,
+            "\nLast\n{}",
+            if let Some(c) = self.end {
+                c.to_string()
+            } else {
+                "(None)".to_string()
+            }
         )?;
+        write!(f, "{buf}")?;
         Ok(())
     }
+}
+
+fn more_indent(buf: &str) -> String {
+    format!("\t{}", buf.to_string().replace("\n", "\n\t"))
 }
 
 /// Generate a comprehensive analysis report for the given store.
@@ -210,39 +268,52 @@ fn key_value_write(
 /// Groups consecutive failed checks by check type and creates
 /// Outage records for reporting.
 fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
-    let all_checks: Vec<&Check> = store.checks().iter().collect();
-    let mut outages: Vec<Outage> = Vec::new();
-    let fails_exist = all_checks
-        .iter()
-        .fold(true, |fails_exist, c| fails_exist & !c.is_success());
-    if !fails_exist || all_checks.is_empty() {
+    let all: Vec<&Check> = store.checks().iter().collect();
+    let fails_exist = !all.iter().all(|c| c.is_success());
+    if !fails_exist || all.is_empty() {
         writeln!(f, "None\n")?;
         return Ok(());
     }
 
-    for check_type in CheckType::all() {
-        let checks: Vec<&&Check> = all_checks
-            .iter()
-            .filter(|c| c.calc_type().unwrap_or(CheckType::Unknown) == *check_type)
-            .collect();
-
-        let fail_groups = fail_groups(&checks);
-        for group in fail_groups {
-            // writeln!(f, "Group {gidx}:")?;
-            // display_group(group, f)?;
-            if !group.is_empty() {
-                outages.push(Outage::new(
-                    checks.first().unwrap(),
-                    Some(checks.last().unwrap()),
-                    &group,
-                ));
-            }
+    let fail_groups = fail_groups(&all);
+    for (outage_idx, group) in fail_groups.into_iter().rev().enumerate() {
+        if group.is_empty() {
+            error!("empty outage group");
+            continue;
+        }
+        let outage = Outage::new(group.first().unwrap(), group.last().copied(), &group);
+        writeln!(f, "{outage_idx}:\t{}", &outage.short_report()?)?;
+        if outage_idx > 9 {
+            writeln!(f, "\nshowing only the 10 latest outages...")?;
+            break;
         }
     }
+    writeln!(f)?;
+    Ok(())
+}
 
-    for outage in outages {
-        writeln!(f, "{outage}")?;
+/// Analyzes and formats outage information from the store.
+///
+/// Groups consecutive failed checks by check type and creates
+/// Outage records for reporting. This is the more detailed version of [outages]
+pub fn outages_detailed(all: &[&Check], f: &mut String) -> Result<(), AnalysisError> {
+    let fails_exist = !all.iter().all(|c| c.is_success());
+    if !fails_exist || all.is_empty() {
+        writeln!(f, "None\n")?;
+        return Ok(());
     }
+
+    let fail_groups = fail_groups(all);
+    for (outage_idx, group) in fail_groups.into_iter().enumerate() {
+        if group.is_empty() {
+            error!("empty outage group");
+            continue;
+        }
+        let outage = Outage::new(group.first().unwrap(), group.last().copied(), &group);
+        writeln!(f, "{outage_idx}:\n{}", more_indent(&outage.to_string()))?;
+    }
+    writeln!(f)?;
+
     Ok(())
 }
 
@@ -252,32 +323,44 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
 /// - Checks are consecutive by index
 /// - All checks in group are failures
 /// - Gap between groups is > 1 check
-fn fail_groups<'check>(checks: &[&&'check Check]) -> Vec<Vec<&'check Check>> {
+fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<Vec<&'check Check>> {
     let failed_idxs: Vec<usize> = checks
         .iter()
         .enumerate()
         .filter(|(_idx, c)| !c.is_success())
         .map(|(idx, _c)| idx)
         .collect();
+
     if failed_idxs.is_empty() {
         return Vec::new();
     }
+
     let mut groups: Vec<Vec<&Check>> = Vec::new();
+    let mut current_group: Vec<&Check> = Vec::new();
 
-    let mut first = failed_idxs[0];
-    let mut last = first;
-    for idx in failed_idxs {
-        if idx == last + 1 {
-            last = idx;
+    // Start with the first index
+    let mut last_idx = failed_idxs[0];
+    current_group.push(checks[last_idx]);
+
+    // Process remaining indices
+    for &idx in failed_idxs.iter().skip(1) {
+        if idx == last_idx + 1 {
+            // Consecutive failure, add to current group
+            current_group.push(checks[idx]);
         } else {
-            let mut group: Vec<&Check> = Vec::new();
-            for check in checks.iter().take(last + 1).skip(first) {
-                group.push(*check);
+            // Gap found, start new group
+            if !current_group.is_empty() {
+                groups.push(current_group);
+                current_group = Vec::new();
             }
-            groups.push(group);
-
-            first = idx;
+            current_group.push(checks[idx]);
         }
+        last_idx = idx;
+    }
+
+    // Don't forget to add the last group
+    if !current_group.is_empty() {
+        groups.push(current_group);
     }
 
     groups
