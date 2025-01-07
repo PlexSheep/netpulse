@@ -65,11 +65,6 @@ pub type CheckGroup<'check> = Vec<&'check Check>;
 /// over time.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Outage<'check> {
-    /// First check that failed, marking the start of the outage
-    start: &'check Check,
-    /// Last failed check before connectivity was restored
-    /// [None] if the outage is still ongoing
-    end: Option<&'check Check>,
     /// All checks that failed during this outage period
     all: Vec<&'check Check>,
 }
@@ -82,45 +77,41 @@ impl<'check> Outage<'check> {
     /// * `start` - The first failed check
     /// * `end` - Optional last failed check (None if ongoing)
     /// * `all_checks` - Slice of all failed checks in this period
-    pub(crate) fn new(
-        start: &'check Check,
-        end: Option<&'check Check>,
-        all_checks: &[&'check Check],
-    ) -> Self {
+    pub(crate) fn new(all_checks: &[&'check Check]) -> Self {
         {
             let mut f = String::new();
             display_group(all_checks, &mut f).expect("could not dump checks");
             trace!("dumping outage at creation: {f}",);
         }
         Self {
-            start,
-            end: if Some(start) == end { None } else { end },
             all: all_checks.to_vec(),
         }
     }
 
+    pub fn last(&self) -> Option<&Check> {
+        self.all.last().map(|a| *a)
+    }
+
+    pub fn first(&self) -> Option<&Check> {
+        self.all.first().map(|a| *a)
+    }
+
     /// Display information about that [Outage] in a short format
     pub fn short_report(&self) -> Result<String, std::fmt::Error> {
-        let mut buf: String = String::new();
-        if self.end.is_some() {
-            write!(
-                &mut buf,
-                "From {}",
-                fmt_timestamp(self.start.timestamp_parsed()),
-            )?;
-            write!(
-                &mut buf,
-                " To {}",
-                fmt_timestamp(self.end.unwrap().timestamp_parsed()),
-            )?;
-        } else {
-            write!(
-                &mut buf,
-                "From {}",
-                fmt_timestamp(self.start.timestamp_parsed()),
-            )?;
-            write!(&mut buf, " To (None)")?;
+        if self.is_empty() {
+            error!("Outage does not contain any checks");
         }
+        let mut buf: String = String::new();
+        write!(
+            &mut buf,
+            "From {}",
+            fmt_timestamp(self.first().unwrap().timestamp_parsed()),
+        )?;
+        write!(
+            &mut buf,
+            " To {}",
+            fmt_timestamp(self.last().unwrap().timestamp_parsed()),
+        )?;
         write!(&mut buf, ", Total {}", self.len())?;
         Ok(buf)
     }
@@ -142,43 +133,29 @@ impl<'check> From<CheckGroup<'check>> for Outage<'check> {
         if value.is_empty() {
             panic!("tried to make an outage from an empty check group");
         }
-        Outage::new(value.first().unwrap(), value.last().copied(), &value)
+        Outage::new(&value)
     }
 }
 
 impl Display for Outage<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut buf: String = String::new();
-        if self.end.is_some() {
-            key_value_write(
-                &mut buf,
-                "From",
-                fmt_timestamp(self.start.timestamp_parsed()),
-            )?;
-            key_value_write(
-                &mut buf,
-                "To",
-                fmt_timestamp(self.end.unwrap().timestamp_parsed()),
-            )?;
-        } else {
-            key_value_write(
-                &mut buf,
-                "From",
-                fmt_timestamp(self.start.timestamp_parsed()),
-            )?;
-            key_value_write(&mut buf, "To", "(None)")?;
+        if self.is_empty() {
+            error!("Outage does not contain any checks");
         }
-        key_value_write(&mut buf, "Total", self.len())?;
-        writeln!(buf, "\nFirst\n{}", self.start)?;
-        writeln!(
-            buf,
-            "\nLast\n{}",
-            if let Some(c) = self.end {
-                c.to_string()
-            } else {
-                "(None)".to_string()
-            }
+        let mut buf: String = String::new();
+        key_value_write(
+            &mut buf,
+            "From",
+            fmt_timestamp(self.first().unwrap().timestamp_parsed()),
         )?;
+        key_value_write(
+            &mut buf,
+            "To",
+            fmt_timestamp(self.last().unwrap().timestamp_parsed()),
+        )?;
+        key_value_write(&mut buf, "Total", self.len())?;
+        writeln!(buf, "\nFirst\n{}", self.last().unwrap())?;
+        writeln!(buf, "\nLast\n{}", self.last().unwrap())?;
         write!(f, "{buf}")?;
         Ok(())
     }
@@ -330,7 +307,6 @@ pub fn outages_detailed(all: &[&Check], f: &mut String) -> Result<(), AnalysisEr
     Ok(())
 }
 
-/// Groups checks by time
 fn group_by_time<'check>(checks: &[&'check Check]) -> HashMap<i64, CheckGroup<'check>> {
     let mut groups: HashMap<i64, CheckGroup<'check>> = HashMap::new();
 
