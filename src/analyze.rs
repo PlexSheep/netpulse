@@ -96,6 +96,31 @@ impl<'check> Outage<'check> {
         }
     }
 
+    pub fn short_report(&self) -> Result<String, std::fmt::Error> {
+        let mut buf: String = String::new();
+        if self.end.is_some() {
+            write!(
+                &mut buf,
+                "From {}",
+                fmt_timestamp(self.start.timestamp_parsed()),
+            )?;
+            write!(
+                &mut buf,
+                " To {}",
+                fmt_timestamp(self.end.unwrap().timestamp_parsed()),
+            )?;
+        } else {
+            write!(
+                &mut buf,
+                "From {}",
+                fmt_timestamp(self.start.timestamp_parsed()),
+            )?;
+            write!(&mut buf, " To {}", "(None)")?;
+        }
+        write!(&mut buf, ", Total {}", self.len())?;
+        Ok(buf)
+    }
+
     /// Returns the length of this [`Outage`].
     pub fn len(&self) -> usize {
         self.all.len()
@@ -243,14 +268,42 @@ fn key_value_write(
 /// Groups consecutive failed checks by check type and creates
 /// Outage records for reporting.
 fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
-    let all_checks: Vec<&Check> = store.checks().iter().collect();
-    let fails_exist = !all_checks.iter().all(|c| c.is_success());
-    if !fails_exist || all_checks.is_empty() {
+    let all: Vec<&Check> = store.checks().iter().collect();
+    let fails_exist = !all.iter().all(|c| c.is_success());
+    if !fails_exist || all.is_empty() {
         writeln!(f, "None\n")?;
         return Ok(());
     }
 
-    let fail_groups = fail_groups(&all_checks);
+    let fail_groups = fail_groups(&all);
+    for (outage_idx, group) in fail_groups.into_iter().rev().enumerate() {
+        if group.is_empty() {
+            error!("empty outage group");
+            continue;
+        }
+        let outage = Outage::new(group.first().unwrap(), group.last().copied(), &group);
+        writeln!(f, "{outage_idx}:\t{}", &outage.short_report()?)?;
+        if outage_idx > 10 {
+            writeln!(f, "showing only the 10 latest outages")?;
+            break;
+        }
+    }
+    writeln!(f)?;
+    Ok(())
+}
+
+/// Analyzes and formats outage information from the store.
+///
+/// Groups consecutive failed checks by check type and creates
+/// Outage records for reporting. This is the more detailed version of [outages]
+pub fn outages_detailed(all: &[&Check], f: &mut String) -> Result<(), AnalysisError> {
+    let fails_exist = !all.iter().all(|c| c.is_success());
+    if !fails_exist || all.is_empty() {
+        writeln!(f, "None\n")?;
+        return Ok(());
+    }
+
+    let fail_groups = fail_groups(all);
     for (outage_idx, group) in fail_groups.into_iter().enumerate() {
         if group.is_empty() {
             error!("empty outage group");

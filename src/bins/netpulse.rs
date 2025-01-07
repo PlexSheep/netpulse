@@ -12,7 +12,7 @@
 //! Use the `--help` flag for more information about the usage.
 
 use getopts::Options;
-use netpulse::analyze;
+use netpulse::analyze::{self, outages_detailed};
 use netpulse::common::{init_logging, print_usage, setup_panic_handler};
 use netpulse::errors::RunError;
 use netpulse::records::{display_group, Check};
@@ -30,6 +30,7 @@ fn main() {
     opts.optflag("V", "version", "print the version");
     opts.optflag("t", "test", "test run all checks");
     opts.optflag("d", "dump", "print out all checks");
+    opts.optflag("o", "outages", "print out all outages");
     opts.optflag(
         "r",
         "rewrite",
@@ -63,6 +64,11 @@ fn main() {
             error!("{e}");
             std::process::exit(1)
         }
+    } else if matches.opt_present("outages") {
+        if let Err(e) = print_outages(None) {
+            error!("{e}");
+            std::process::exit(1)
+        }
     } else if matches.opt_present("rewrite") {
         if let Err(e) = rewrite() {
             error!("{e}");
@@ -80,6 +86,22 @@ fn test_checks() -> Result<(), RunError> {
     Store::primitive_make_checks(&mut checks);
     let hack_checks: Vec<&Check> = checks.iter().collect();
     display_group(&hack_checks, &mut buf)?;
+    println!("{buf}");
+    Ok(())
+}
+
+fn print_outages(latest: Option<usize>) -> Result<(), RunError> {
+    let store = Store::load(true)?;
+    let mut buf = String::new();
+    let ref_checks: Vec<&Check> = if let Some(limit) = latest {
+        store.checks().iter().rev().take(limit).collect()
+    } else {
+        store.checks().iter().collect()
+    };
+    if let Err(e) = outages_detailed(&ref_checks, &mut buf) {
+        eprintln!("{e}");
+        std::process::exit(1);
+    }
     println!("{buf}");
     Ok(())
 }
