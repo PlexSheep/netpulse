@@ -115,7 +115,7 @@ impl<'check> Outage<'check> {
                 "From {}",
                 fmt_timestamp(self.start.timestamp_parsed()),
             )?;
-            write!(&mut buf, " To {}", "(None)")?;
+            write!(&mut buf, " To (None)")?;
         }
         write!(&mut buf, ", Total {}", self.len())?;
         Ok(buf)
