@@ -31,7 +31,7 @@
 
 use chrono::{DateTime, Local};
 use deepsize::DeepSizeOf;
-use tracing::{error, trace};
+use tracing::{debug, error, trace};
 
 use crate::errors::AnalysisError;
 use crate::records::{display_group, Check, CheckType, IpType};
@@ -342,50 +342,24 @@ fn group_by_time<'check>(checks: &[&'check Check]) -> HashMap<i64, CheckGroup<'c
 }
 
 fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'check>> {
-    let by_time = group_by_time(checks);
-    let mut groups = Vec::new();
-    let mut processed_times: HashSet<i64> = HashSet::new();
+    trace!("calculating fail groups");
+    let mut groups: Vec<CheckGroup<'check>> = Vec::new();
+    let mut checks: Vec<_> = checks.to_vec();
+    checks.sort();
 
-    for (time, current_checks) in by_time.iter() {
-        // Skip if we've already processed this time as part of another group
-        if processed_times.contains(time) {
-            continue;
-        }
-        // Skip if this check series did not fail
-        if current_checks.iter().all(|a| a.is_success()) {
-            continue;
-        }
+    let mut in_group = false;
+    let mut current_group = Vec::new();
 
-        let mut current_group = Vec::new();
-
-        let keys_after: Vec<&i64> = by_time.keys().filter(|v| **v > *time).collect();
-        let keys_before: Vec<&i64> = by_time.keys().filter(|v| **v <= *time).collect();
-
-        // find the start of the outage
-        for t in keys_before.iter().rev() {
-            let checks: &CheckGroup<'_> = &by_time[t];
-            if checks.iter().all(|a| a.is_success()) {
-                continue;
-            } else {
-                current_group.extend(checks);
-                processed_times.insert(**t);
-            }
-        }
-
-        // find the end of the outage
-        for t in keys_after.iter() {
-            let checks: &CheckGroup<'_> = &by_time[t];
-            if checks.iter().all(|a| a.is_success()) {
-                continue;
-            } else {
-                current_group.extend(checks);
-                processed_times.insert(**t);
-            }
-        }
-
-        if !current_group.is_empty() {
-            current_group.sort();
+    for c in checks {
+        if in_group && c.is_success() {
             groups.push(current_group);
+            current_group = Vec::new();
+            in_group = false;
+        } else if !c.is_success() {
+            if !in_group {
+                in_group = true;
+            }
+            current_group.push(c);
         }
     }
 
