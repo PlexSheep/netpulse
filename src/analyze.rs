@@ -343,24 +343,39 @@ fn group_by_time<'check>(checks: &[&'check Check]) -> HashMap<i64, CheckGroup<'c
 
 fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'check>> {
     let by_time = group_by_time(checks);
-    let mut groups: HashSet<CheckGroup> = HashSet::new();
-    let mut group;
-    for key in by_time.keys() {
-        group = Vec::new();
+    let mut groups = Vec::new();
+    let mut processed_times = HashSet::new();
+    let window = DEFAULT_PERIOD * OUTAGE_TIME_SPAN;
 
-        for in_range_time in
-            key - (DEFAULT_PERIOD * OUTAGE_TIME_SPAN)..key + (DEFAULT_PERIOD * OUTAGE_TIME_SPAN)
-        {
-            if let Some(a) = by_time.get(&in_range_time).cloned() {
-                group.extend(a);
+    for &time in by_time.keys() {
+        // Skip if we've already processed this time as part of another group
+        if processed_times.contains(&time) {
+            continue;
+        }
+
+        let mut current_group = Vec::new();
+
+        // Find all checks within the time window
+        let window_start = time.saturating_sub(window);
+        let window_end = time.saturating_add(window);
+
+        // Mark all times in this window as processed
+        for t in by_time.keys() {
+            if *t >= window_start && *t <= window_end && processed_times.insert(*t) {
+                // Only process if not already processed
+                if let Some(checks) = by_time.get(t) {
+                    current_group.extend(checks.iter().cloned());
+                }
             }
         }
 
-        group.sort();
-        groups.insert(group);
+        if !current_group.is_empty() {
+            current_group.sort();
+            groups.push(current_group);
+        }
     }
 
-    groups.into_iter().collect()
+    groups
 }
 
 /// Analyze metrics for a specific check type.

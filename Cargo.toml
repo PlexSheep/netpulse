@@ -48,3 +48,7 @@ required-features = ["executable"]
 
 [package.metadata."docs.rs"]
 all-features = true
+
+[profile.profiling]
+inherits = "release"
+debug = true
