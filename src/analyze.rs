@@ -115,7 +115,7 @@ impl Display for Outage<'_> {
             key_value_write(
                 &mut buf,
                 "From",
-                fmt_timestamp(self.end.unwrap().timestamp_parsed()),
+                fmt_timestamp(self.start.timestamp_parsed()),
             )?;
             key_value_write(
                 &mut buf,
@@ -131,8 +131,16 @@ impl Display for Outage<'_> {
             key_value_write(&mut buf, "To", "(None)")?;
         }
         key_value_write(&mut buf, "Total", self.len())?;
-        writeln!(buf, "\nDetails")?;
-        display_group(&self.all, &mut buf)?;
+        writeln!(buf, "\nFirst\n{}", self.start)?;
+        writeln!(
+            buf,
+            "\nLast\n{}",
+            if let Some(c) = self.end {
+                c.to_string()
+            } else {
+                "(None)".to_string()
+            }
+        )?;
         write!(f, "{buf}")?;
         Ok(())
     }
@@ -230,17 +238,6 @@ fn key_value_write(
     writeln!(f, "{:<24}: {}", title, content)
 }
 
-/// Writes a key-value pair to the report in aligned columns.
-///
-/// Format: `<key>: <value>`
-fn key_value_write_indented(
-    f: &mut String,
-    title: &str,
-    content: impl Display,
-) -> Result<(), std::fmt::Error> {
-    writeln!(f, "        {:<16}: {}", title, content)
-}
-
 /// Analyzes and formats outage information from the store.
 ///
 /// Groups consecutive failed checks by check type and creates
@@ -253,9 +250,7 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
         return Ok(());
     }
 
-    let failed_checks: Vec<&&Check> = all_checks.iter().filter(|c| !c.is_success()).collect();
-
-    let fail_groups = fail_groups(&failed_checks);
+    let fail_groups = fail_groups(&all_checks);
     for (outage_idx, group) in fail_groups.into_iter().enumerate() {
         if group.is_empty() {
             error!("empty outage group");
@@ -275,32 +270,44 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
 /// - Checks are consecutive by index
 /// - All checks in group are failures
 /// - Gap between groups is > 1 check
-fn fail_groups<'check>(checks: &[&&'check Check]) -> Vec<Vec<&'check Check>> {
+fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<Vec<&'check Check>> {
     let failed_idxs: Vec<usize> = checks
         .iter()
         .enumerate()
         .filter(|(_idx, c)| !c.is_success())
         .map(|(idx, _c)| idx)
         .collect();
+
     if failed_idxs.is_empty() {
         return Vec::new();
     }
+
     let mut groups: Vec<Vec<&Check>> = Vec::new();
+    let mut current_group: Vec<&Check> = Vec::new();
 
-    let mut first = failed_idxs[0];
-    let mut last = first;
-    for idx in failed_idxs {
-        if idx == last + 1 {
-            last = idx;
+    // Start with the first index
+    let mut last_idx = failed_idxs[0];
+    current_group.push(checks[last_idx]);
+
+    // Process remaining indices
+    for &idx in failed_idxs.iter().skip(1) {
+        if idx == last_idx + 1 {
+            // Consecutive failure, add to current group
+            current_group.push(checks[idx]);
         } else {
-            let mut group: Vec<&Check> = Vec::new();
-            for check in checks.iter().take(last + 1).skip(first) {
-                group.push(*check);
+            // Gap found, start new group
+            if !current_group.is_empty() {
+                groups.push(current_group);
+                current_group = Vec::new();
             }
-            groups.push(group);
-
-            first = idx;
+            current_group.push(checks[idx]);
         }
+        last_idx = idx;
+    }
+
+    // Don't forget to add the last group
+    if !current_group.is_empty() {
+        groups.push(current_group);
     }
 
     groups

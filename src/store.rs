@@ -353,7 +353,6 @@ impl Store {
             Err(err) => match &err {
                 StoreError::DoesNotExist => Self::create(),
                 StoreError::Load { source } => {
-                    dbg!(source);
                     error!("{err}");
 
                     #[allow(clippy::single_match)] // more will certainly come later
