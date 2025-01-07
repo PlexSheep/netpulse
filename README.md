@@ -196,28 +196,6 @@ Store Size (file)       : 1113762
 File to Mem Ratio       : 0.06638526175449036
 ```
 
-### Updating
-
-There are two steps to updating Netpulse:
-
-1. Update the binaries:
-
-```bash
-cargo install netpulse
-```
-
-2. Update the system configuration:
-
-```bash
-sudo netpulsed --setup
-```
-
-3. If using systemd, restart the service:
-
-```bash
-sudo systemctl restart netpulsed.service
-```
-
 ### Files and Directories
 
 `netpulsed` will try to create a few directories / files:
