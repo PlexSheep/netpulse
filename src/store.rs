@@ -63,6 +63,10 @@ pub const ENV_PATH: &str = "NETPULSE_STORE_PATH";
 
 /// How long to wait between running workloads for the daemon
 pub const DEFAULT_PERIOD: i64 = 60;
+/// How many seconds in both directions checks should be put into the same [Outage](crate::analyze::Outage)
+pub const OUTAGE_TIME_SPAN: i64 = DEFAULT_PERIOD * OUTAGE_TIME_FACTOR;
+/// How many [DEFAULT_PERIOD] of a span to consider one [Outage](crate::analyze::Outage)
+pub const OUTAGE_TIME_FACTOR: i64 = 5;
 /// Environment variable name for the time period after which the daemon wakes up.
 ///
 /// If set, its value will be used instead of [DEFAULT_PERIOD].

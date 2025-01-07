@@ -42,7 +42,7 @@ use std::fmt::{Display, Write};
 use std::hash::Hash;
 use std::net::IpAddr;
 
-use chrono::{DateTime, Local, TimeZone, Utc};
+use chrono::{DateTime, Local, TimeZone, Timelike, Utc};
 use deepsize::DeepSizeOf;
 use flagset::{flags, FlagSet};
 use serde::{Deserialize, Serialize};
@@ -89,9 +89,6 @@ flags! {
         /// The Check used HTTP/HTTPS
         TypeHTTP    =   0b0001_0000_0000_0000,
         /// Check type was ICMP (ping)
-        ///
-        /// Must be combined with either [IPv4](CheckFlag::IPv4) or [IPv6](CheckFlag::IPv6)
-        /// to determine the specific ICMP version used
         TypeIcmp    =   0b0100_0000_0000_0000,
         /// The Check used DNS
         TypeDns     =   0b1000_0000_0000_0000,
@@ -253,6 +250,18 @@ impl DeepSizeOf for Check {
     }
 }
 
+impl PartialOrd for Check {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Check {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.timestamp.cmp(&other.timestamp)
+    }
+}
+
 impl Check {
     /// Generates a cryptographic hash of the [Check] data.
     ///
@@ -298,7 +307,13 @@ impl Check {
         latency: Option<u16>,
         target: IpAddr,
     ) -> Self {
-        let t: DateTime<Utc> = time.into();
+        let mut t: DateTime<Utc> = time.into();
+        t = t
+            .with_second(0)
+            .expect("minute with second 0 does not exist");
+        t = t
+            .with_nanosecond(0)
+            .expect("minute with nanosecond 0 does not exist");
         Check {
             timestamp: t.timestamp(),
             flags: flags.into(),

@@ -37,6 +37,7 @@ use crate::errors::AnalysisError;
 use crate::records::{display_group, Check, CheckType, IpType};
 use crate::store::Store;
 
+use std::collections::HashMap;
 use std::fmt::{Display, Write};
 use std::hash::Hash;
 use std::os::unix::fs::MetadataExt;
@@ -50,6 +51,8 @@ use std::os::unix::fs::MetadataExt;
 /// println!("it is now: {}", datetime.format(TIME_FORMAT_HUMANS));
 /// ```
 pub const TIME_FORMAT_HUMANS: &str = "%Y-%m-%d %H:%M:%S %Z";
+/// A group of [Checks](Check)
+pub type CheckGroup<'check> = Vec<&'check Check>;
 
 /// Represents a period of consecutive failed checks.
 ///
@@ -62,11 +65,6 @@ pub const TIME_FORMAT_HUMANS: &str = "%Y-%m-%d %H:%M:%S %Z";
 /// over time.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct Outage<'check> {
-    /// First check that failed, marking the start of the outage
-    start: &'check Check,
-    /// Last failed check before connectivity was restored
-    /// [None] if the outage is still ongoing
-    end: Option<&'check Check>,
     /// All checks that failed during this outage period
     all: Vec<&'check Check>,
 }
@@ -79,44 +77,40 @@ impl<'check> Outage<'check> {
     /// * `start` - The first failed check
     /// * `end` - Optional last failed check (None if ongoing)
     /// * `all_checks` - Slice of all failed checks in this period
-    pub(crate) fn new(
-        start: &'check Check,
-        end: Option<&'check Check>,
-        all_checks: &[&'check Check],
-    ) -> Self {
+    pub(crate) fn new(all_checks: &[&'check Check]) -> Self {
         {
             let mut f = String::new();
             display_group(all_checks, &mut f).expect("could not dump checks");
-            trace!("dumping outage at creation: {f}",);
         }
-        Self {
-            start,
-            end: if Some(start) == end { None } else { end },
-            all: all_checks.to_vec(),
-        }
+        let mut all = all_checks.to_vec();
+        all.sort();
+        Self { all }
     }
 
+    pub fn last(&self) -> Option<&Check> {
+        self.all.last().copied()
+    }
+
+    pub fn first(&self) -> Option<&Check> {
+        self.all.first().copied()
+    }
+
+    /// Display information about that [Outage] in a short format
     pub fn short_report(&self) -> Result<String, std::fmt::Error> {
-        let mut buf: String = String::new();
-        if self.end.is_some() {
-            write!(
-                &mut buf,
-                "From {}",
-                fmt_timestamp(self.start.timestamp_parsed()),
-            )?;
-            write!(
-                &mut buf,
-                " To {}",
-                fmt_timestamp(self.end.unwrap().timestamp_parsed()),
-            )?;
-        } else {
-            write!(
-                &mut buf,
-                "From {}",
-                fmt_timestamp(self.start.timestamp_parsed()),
-            )?;
-            write!(&mut buf, " To (None)")?;
+        if self.is_empty() {
+            error!("Outage does not contain any checks");
         }
+        let mut buf: String = String::new();
+        write!(
+            &mut buf,
+            "From {}",
+            fmt_timestamp(self.first().unwrap().timestamp_parsed()),
+        )?;
+        write!(
+            &mut buf,
+            " To {}",
+            fmt_timestamp(self.last().unwrap().timestamp_parsed()),
+        )?;
         write!(&mut buf, ", Total {}", self.len())?;
         Ok(buf)
     }
@@ -133,39 +127,44 @@ impl<'check> Outage<'check> {
     }
 }
 
+impl<'check> From<&'check [Check]> for Outage<'check> {
+    fn from(value: &'check [Check]) -> Self {
+        if value.is_empty() {
+            panic!("tried to make an outage from an empty check group");
+        }
+        let a: Vec<&Check> = value.iter().collect();
+        Outage::new(&a)
+    }
+}
+
+impl<'check> From<CheckGroup<'check>> for Outage<'check> {
+    fn from(value: CheckGroup<'check>) -> Self {
+        if value.is_empty() {
+            panic!("tried to make an outage from an empty check group");
+        }
+        Outage::new(&value)
+    }
+}
+
 impl Display for Outage<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut buf: String = String::new();
-        if self.end.is_some() {
-            key_value_write(
-                &mut buf,
-                "From",
-                fmt_timestamp(self.start.timestamp_parsed()),
-            )?;
-            key_value_write(
-                &mut buf,
-                "To",
-                fmt_timestamp(self.end.unwrap().timestamp_parsed()),
-            )?;
-        } else {
-            key_value_write(
-                &mut buf,
-                "From",
-                fmt_timestamp(self.start.timestamp_parsed()),
-            )?;
-            key_value_write(&mut buf, "To", "(None)")?;
+        if self.is_empty() {
+            error!("Outage does not contain any checks");
         }
-        key_value_write(&mut buf, "Total", self.len())?;
-        writeln!(buf, "\nFirst\n{}", self.start)?;
-        writeln!(
-            buf,
-            "\nLast\n{}",
-            if let Some(c) = self.end {
-                c.to_string()
-            } else {
-                "(None)".to_string()
-            }
+        let mut buf: String = String::new();
+        key_value_write(
+            &mut buf,
+            "From",
+            fmt_timestamp(self.first().unwrap().timestamp_parsed()),
         )?;
+        key_value_write(
+            &mut buf,
+            "To",
+            fmt_timestamp(self.last().unwrap().timestamp_parsed()),
+        )?;
+        key_value_write(&mut buf, "Total", self.len())?;
+        writeln!(buf, "\nFirst\n{}", self.last().unwrap())?;
+        writeln!(buf, "\nLast\n{}", self.last().unwrap())?;
         write!(f, "{buf}")?;
         Ok(())
     }
@@ -281,9 +280,9 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
             error!("empty outage group");
             continue;
         }
-        let outage = Outage::new(group.first().unwrap(), group.last().copied(), &group);
+        let outage = Outage::from(group);
         writeln!(f, "{outage_idx}:\t{}", &outage.short_report()?)?;
-        if outage_idx > 9 {
+        if outage_idx >= 9 {
             writeln!(f, "\nshowing only the 10 latest outages...")?;
             break;
         }
@@ -296,7 +295,7 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
 ///
 /// Groups consecutive failed checks by check type and creates
 /// Outage records for reporting. This is the more detailed version of [outages]
-pub fn outages_detailed(all: &[&Check], f: &mut String) -> Result<(), AnalysisError> {
+pub fn outages_detailed(all: &[&Check], f: &mut String, dump: bool) -> Result<(), AnalysisError> {
     let fails_exist = !all.iter().all(|c| c.is_success());
     if !fails_exist || all.is_empty() {
         writeln!(f, "None\n")?;
@@ -309,60 +308,61 @@ pub fn outages_detailed(all: &[&Check], f: &mut String) -> Result<(), AnalysisEr
             error!("empty outage group");
             continue;
         }
-        let outage = Outage::new(group.first().unwrap(), group.last().copied(), &group);
+        let outage = Outage::from(group);
         writeln!(f, "{outage_idx}:\n{}", more_indent(&outage.to_string()))?;
+        if dump {
+            let mut buf = String::new();
+            display_group(&outage.all, &mut buf)?;
+            writeln!(f, "\tAll contained:\n{}", more_indent(&buf))?;
+        }
     }
     writeln!(f)?;
 
     Ok(())
 }
 
-/// Find groups of consecutive failed checks.
-///
-/// Groups are formed when:
-/// - Checks are consecutive by index
-/// - All checks in group are failures
-/// - Gap between groups is > 1 check
-fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<Vec<&'check Check>> {
-    let failed_idxs: Vec<usize> = checks
-        .iter()
-        .enumerate()
-        .filter(|(_idx, c)| !c.is_success())
-        .map(|(idx, _c)| idx)
-        .collect();
+fn group_by_time<'check>(checks: &[&'check Check]) -> HashMap<i64, CheckGroup<'check>> {
+    let mut groups: HashMap<i64, CheckGroup<'check>> = HashMap::new();
 
-    if failed_idxs.is_empty() {
-        return Vec::new();
+    for check in checks {
+        groups.entry(check.timestamp()).or_default().push(check);
     }
 
-    let mut groups: Vec<Vec<&Check>> = Vec::new();
+    groups
+}
+
+fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'check>> {
+    trace!("calculating fail groups");
+    let mut groups: Vec<CheckGroup<'check>> = Vec::new();
+    let by_time = group_by_time(checks);
+    let mut time_sorted_values: Vec<&Vec<&Check>> = by_time.values().collect();
+    time_sorted_values.sort();
+
+    let mut in_group = false;
     let mut current_group: Vec<&Check> = Vec::new();
 
-    // Start with the first index
-    let mut last_idx = failed_idxs[0];
-    current_group.push(checks[last_idx]);
-
-    // Process remaining indices
-    for &idx in failed_idxs.iter().skip(1) {
-        if idx == last_idx + 1 {
-            // Consecutive failure, add to current group
-            current_group.push(checks[idx]);
-        } else {
-            // Gap found, start new group
-            if !current_group.is_empty() {
-                groups.push(current_group);
-                current_group = Vec::new();
+    for checks in time_sorted_values {
+        let ok = checks.iter().all(|a| a.is_success());
+        if !ok {
+            if !in_group {
+                in_group = true;
             }
-            current_group.push(checks[idx]);
+            current_group.extend(checks);
+        } else if in_group && ok {
+            // end of the outage
+
+            in_group = false;
+            groups.push(current_group);
+            current_group = Vec::new();
         }
-        last_idx = idx;
     }
 
-    // Don't forget to add the last group
-    if !current_group.is_empty() {
+    // finishing up, some might be left over
+    if in_group {
         groups.push(current_group);
     }
 
+    groups.sort();
     groups
 }
 
@@ -510,4 +510,89 @@ fn store_meta(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
 #[inline]
 fn success_ratio(all_checks: usize, subset: usize) -> f64 {
     subset as f64 / all_checks as f64
+}
+
+#[cfg(test)]
+mod tests {
+
+    use chrono::{Timelike, Utc};
+    use tracing_test::traced_test;
+
+    use crate::analyze::Outage;
+    use crate::records::{Check, CheckFlag, TARGETS};
+
+    use super::{fail_groups, group_by_time};
+
+    #[rustfmt::skip]
+    fn basic_check_set() -> Vec<Check>{
+        let ip4 = TARGETS[0].parse().unwrap();
+        let ip6 = TARGETS[1].parse().unwrap();
+        let time = Utc::now().with_minute(0).unwrap();
+        let time2 = Utc::now().with_minute(time.minute()+1).unwrap();
+        let time3 = Utc::now().with_minute(time.minute()+2).unwrap();
+        let time4 = Utc::now().with_minute(time.minute()+3).unwrap();
+        let time5 = Utc::now().with_minute(time.minute()+4).unwrap();
+
+        let mut a = vec![
+            Check::new(time, CheckFlag::Success | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time, CheckFlag::Success | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time, CheckFlag::Success | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time, CheckFlag::Success | CheckFlag::TypeIcmp, None, ip6),
+
+            Check::new(time2, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time2, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time2, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time2, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip6),
+
+            Check::new(time3, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time3, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time3, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time3, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip6),
+
+            Check::new(time4, CheckFlag::Success | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time4, CheckFlag::Success | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time4, CheckFlag::Success | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time4, CheckFlag::Success | CheckFlag::TypeIcmp, None, ip6),
+
+            Check::new(time5, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time5, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time5, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time5, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip6),
+        ]    ;
+        a.sort();
+        a
+    }
+
+    #[test]
+    #[traced_test]
+    fn test_fail_groups() {
+        let base_checks = basic_check_set();
+        let checks: Vec<&Check> = base_checks.iter().collect();
+
+        // fail_groups has been non deterministic in the past, because of not-sorting
+        for _ in 0..40 {
+            let fg = fail_groups(&checks);
+            assert_eq!(fg.len(), 2);
+            assert_eq!(fg[0].len(), 8);
+            assert_eq!(fg[1].len(), 4);
+
+            let _outages = [Outage::from(fg[0].clone()), Outage::from(fg[1].clone())];
+        }
+    }
+
+    #[test]
+    #[traced_test]
+    fn test_group_by_time() {
+        let base_checks = basic_check_set();
+        let checks: Vec<&Check> = base_checks.iter().collect();
+
+        let tg = group_by_time(&checks);
+        assert_eq!(tg.len(), 5);
+        for (k, v) in tg {
+            assert_eq!(v.len(), 4);
+            for c in v {
+                assert_eq!(k, c.timestamp())
+            }
+        }
+    }
 }
