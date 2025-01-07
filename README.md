@@ -56,7 +56,7 @@ This will install both the `netpulse` and `netpulsed` executables.
 After installing the binaries, you'll need to set up the daemon environment:
 
 ```bash
-sudo netpulsed --setup
+sudo $(which netpulsed) --setup
 ```
 
 This will:
@@ -66,6 +66,10 @@ This will:
 - Create necessary directories and set permissions
 - Install a systemd unit file
 - Configure logging
+
+Note: `cargo` usually installs the binary for your local user, not for the whole
+program. If executing as root, you will need to specify the full path. That's
+what the `$(which netpulsed)` is for, it just returns the absolute path.
 
 ## Usage
 
@@ -88,7 +92,7 @@ The `netpulsed` daemon can be run either through systemd (recommended) or as a s
 
 #### Using Systemd (Recommended)
 
-After running the setup (`sudo netpulsed --setup`), you can manage the daemon using standard systemd commands:
+After running the setup (`sudo $(which netpulsed) --setup`), you can manage the daemon using standard systemd commands:
 
 ```bash
 sudo systemctl start netpulsed.service   # Start the daemon
