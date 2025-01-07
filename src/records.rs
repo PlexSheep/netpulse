@@ -253,6 +253,18 @@ impl DeepSizeOf for Check {
     }
 }
 
+impl PartialOrd for Check {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Check {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.timestamp.cmp(&other.timestamp)
+    }
+}
+
 impl Check {
     /// Generates a cryptographic hash of the [Check] data.
     ///
