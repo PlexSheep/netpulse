@@ -127,6 +127,16 @@ impl<'check> Outage<'check> {
     }
 }
 
+impl<'check> From<&'check [Check]> for Outage<'check> {
+    fn from(value: &'check [Check]) -> Self {
+        if value.is_empty() {
+            panic!("tried to make an outage from an empty check group");
+        }
+        let a: Vec<&Check> = value.iter().collect();
+        Outage::new(&a)
+    }
+}
+
 impl<'check> From<CheckGroup<'check>> for Outage<'check> {
     fn from(value: CheckGroup<'check>) -> Self {
         if value.is_empty() {
@@ -327,15 +337,16 @@ fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'check>> {
     let by_time = group_by_time(checks);
 
     let mut in_group = false;
-    let mut current_group = Vec::new();
+    let mut current_group: Vec<&Check> = Vec::new();
 
     for checks in by_time.values() {
-        if !checks.iter().all(|a| a.is_success()) {
+        let ok = checks.iter().all(|a| a.is_success());
+        if !ok {
             if !in_group {
                 in_group = true;
             }
             current_group.extend(checks);
-        } else if in_group && checks.iter().all(|a| a.is_success()) {
+        } else if in_group && ok {
             // end of the outage
 
             in_group = false;
@@ -492,4 +503,71 @@ fn store_meta(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
 #[inline]
 fn success_ratio(all_checks: usize, subset: usize) -> f64 {
     subset as f64 / all_checks as f64
+}
+
+#[cfg(test)]
+mod tests {
+
+    use chrono::{Timelike, Utc};
+
+    use crate::analyze::Outage;
+    use crate::records::{Check, CheckFlag, TARGETS};
+
+    use super::fail_groups;
+
+    #[rustfmt::skip]
+    fn basic_check_set() -> Vec<Check>{
+        let ip4 = TARGETS[0].parse().unwrap();
+        let ip6 = TARGETS[1].parse().unwrap();
+        let time = Utc::now().with_minute(0).unwrap();
+        let time2 = Utc::now().with_minute(time.minute()+1).unwrap();
+        let time3 = Utc::now().with_minute(time.minute()+2).unwrap();
+        let time4 = Utc::now().with_minute(time.minute()+3).unwrap();
+        let time5 = Utc::now().with_minute(time.minute()+4).unwrap();
+
+        let mut a = vec![
+            Check::new(time, CheckFlag::Success | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time, CheckFlag::Success | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time, CheckFlag::Success | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time, CheckFlag::Success | CheckFlag::TypeIcmp, None, ip6),
+
+            Check::new(time2, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time2, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time2, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time2, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip6),
+
+            Check::new(time3, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time3, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time3, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time3, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip6),
+
+            Check::new(time4, CheckFlag::Success | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time4, CheckFlag::Success | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time4, CheckFlag::Success | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time4, CheckFlag::Success | CheckFlag::TypeIcmp, None, ip6),
+
+            Check::new(time5, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time5, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time5, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time5, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip6),
+        ]    ;
+        a.sort();
+        a
+    }
+
+    #[test]
+    fn test_fail_groups() {
+        // fail_groups has been non deterministic in the past
+        for _ in 0..200 {
+            let base_checks = basic_check_set();
+            let checks: Vec<&Check> = base_checks.iter().collect();
+
+            let fg = fail_groups(&checks);
+            assert_eq!(fg.len(), 2);
+            assert_eq!(fg[0].len(), 8);
+            assert_eq!(fg[1].len(), 4);
+
+            let _outages = [Outage::from(fg[0].clone()), Outage::from(fg[1].clone())];
+        }
+    }
 }
