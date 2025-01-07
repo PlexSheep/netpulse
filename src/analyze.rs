@@ -364,7 +364,7 @@ fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'check>> {
             if *t >= window_start && *t <= window_end && processed_times.insert(*t) {
                 // Only process if not already processed
                 if let Some(checks) = by_time.get(t) {
-                    current_group.extend(checks.iter().cloned());
+                    current_group.extend(checks.iter().filter(|c| !c.is_success()).cloned());
                 }
             }
         }
