@@ -513,7 +513,7 @@ mod tests {
     use crate::analyze::Outage;
     use crate::records::{Check, CheckFlag, TARGETS};
 
-    use super::fail_groups;
+    use super::{fail_groups, group_by_time};
 
     #[rustfmt::skip]
     fn basic_check_set() -> Vec<Check>{
@@ -568,6 +568,21 @@ mod tests {
             assert_eq!(fg[1].len(), 4);
 
             let _outages = [Outage::from(fg[0].clone()), Outage::from(fg[1].clone())];
+        }
+    }
+
+    #[test]
+    fn test_group_by_time() {
+        let base_checks = basic_check_set();
+        let checks: Vec<&Check> = base_checks.iter().collect();
+
+        let tg = group_by_time(&checks);
+        assert_eq!(tg.len(), 5);
+        for (k, v) in tg {
+            assert_eq!(v.len(), 4);
+            for c in v {
+                assert_eq!(k, c.timestamp())
+            }
         }
     }
 }
