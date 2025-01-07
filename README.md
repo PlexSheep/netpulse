@@ -8,9 +8,9 @@
 
 Keep track of your internet connection with a daemon
 
-* [GitHub](https://github.com/PlexSheep/netpulse)
-* [crates.io](https://crates.io/crates/netpulse)
-* [docs.rs](https://docs.rs/crate/netpulse/)
+- [GitHub](https://github.com/PlexSheep/netpulse)
+- [crates.io](https://crates.io/crates/netpulse)
+- [docs.rs](https://docs.rs/crate/netpulse/)
 
 ## Why?
 
@@ -42,14 +42,7 @@ your system shuts down. Root privileges are required for starting and setup,
 but privileges will be dropped to the user `netpulse` with the group
 `netpulse`.
 
-Therefore, you need to create a user `netpulse` on your system to use the
-daemon:
-
-```bash
-useradd -r -s /usr/sbin/nologin netpulse
-```
-
-To set everything up, including a systemd unit file and copying the `netpulsed`
+To set everything up, including a systemd unit file, a user, and copying the `netpulsed`
 executable to `/usr/local/bin/`, do the following:
 
 ```bash
@@ -71,10 +64,10 @@ and analyze the store.
 
 `netpulsed` will try to create a few directories / files:
 
-* `/run/netpulse/netpulse.pid` – lockfile with the PID of the daemon to make sure it doesn't run multiple times
-* `/var/lib/netpulse/netpuse.store` – the database where your checks are stored
-* `/var/log/netpulse.log` – contains the stdout of the daemon
-* `/var/log/netpulse.err` – contains the stderr of the daemon
+- `/run/netpulse/netpulse.pid` – lockfile with the PID of the daemon to make sure it doesn't run multiple times
+- `/var/lib/netpulse/netpuse.store` – the database where your checks are stored
+- `/var/log/netpulse.log` – contains the stdout of the daemon
+- `/var/log/netpulse.err` – contains the stderr of the daemon
 
 ### Targets
 
