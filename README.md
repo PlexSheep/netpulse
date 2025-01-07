@@ -6,7 +6,7 @@
 ![GitHub language count](https://img.shields.io/github/languages/count/PlexSheep/netpulse)
 [![Rust CI](https://github.com/PlexSheep/netpulse/actions/workflows/cargo.yaml/badge.svg)](https://github.com/PlexSheep/hedu/actions/workflows/cargo.yaml)
 
-Keep track of your internet connection with a daemon
+Keep track of your internet connection with a daemon. Licensed under MIT.
 
 - [GitHub](https://github.com/PlexSheep/netpulse)
 - [crates.io](https://crates.io/crates/netpulse)
@@ -16,6 +16,56 @@ Keep track of your internet connection with a daemon
 
 My ISP has trouble pretty much every year some month delivering constant uptime,
 Netpulse helps keep track of when your internet connectivity goes down.
+
+## Platform Support
+
+- Primary support: GNU/Linux x86_64
+- Other architectures: May work but untested
+- Windows: Not supported
+- macOS: Unknown/untested
+
+I have it running on my homeserver and laptop with Debian based modern Operating
+Systems.
+
+## How it Works
+
+Netpulse performs comprehensive connectivity checks using multiple methods:
+
+1. HTTP Checks: Makes HTTP requests to test application-layer connectivity
+2. ICMP Checks: Sends ping requests to test basic network reachability
+3. Dual-Stack: Each check is performed over both IPv4 and IPv6 to monitor both network stacks
+
+The daemon performs these checks every 60 seconds against reliable targets
+(currently Cloudflare's DNS servers). This multi-protocol approach helps
+distinguish between different types of connectivity issues.
+
+## Installation
+
+### Via Cargo
+
+The simplest way to install Netpulse is through Cargo:
+
+```bash
+cargo install netpulse
+```
+
+This will install both the `netpulse` and `netpulsed` executables.
+
+### System Setup
+
+After installing the binaries, you'll need to set up the daemon environment:
+
+```bash
+sudo netpulsed --setup
+```
+
+This will:
+
+- Create the netpulse user and group
+- Copy the `netpulsed` executable to `/usr/local/bin/`
+- Create necessary directories and set permissions
+- Install a systemd unit file
+- Configure logging
 
 ## Usage
 
@@ -34,31 +84,123 @@ seconds.
 
 ### The Daemon
 
-The daemon of Netpulse can be started, ended and so on with the `netpulsed`
-executable.
+The `netpulsed` daemon can be run either through systemd (recommended) or as a standalone process.
 
-A simple `sudo netpulsed --start` will let the daemon run until you stop it or
-your system shuts down. Root privileges are required for starting and setup,
-but privileges will be dropped to the user `netpulse` with the group
-`netpulse`.
+#### Using Systemd (Recommended)
 
-To set everything up, including a systemd unit file, a user, and copying the `netpulsed`
-executable to `/usr/local/bin/`, do the following:
+After running the setup (`sudo netpulsed --setup`), you can manage the daemon using standard systemd commands:
 
 ```bash
-netpulsed --setup
+sudo systemctl start netpulsed.service   # Start the daemon
+sudo systemctl stop netpulsed.service    # Stop the daemon
+sudo systemctl status netpulsed.service  # Check daemon status
 ```
 
-#### Updating
+#### Running Standalone
 
-Just run `netpulsed --setup` again, and restart the systemd service with
-`systemctl restart netpulsed.service` if you use that.
+You can also run `netpulsed` directly as a regular program. Note that root privileges are required for setup, but the daemon will drop privileges to the `netpulse` user and group during operation.
+
+#### Logging
+
+The daemon's log level can be controlled using the `NETPULSE_LOG_LEVEL` environment variable. Valid values are:
+
+- `error`
+- `warn`
+- `info` (default)
+- `debug`
+- `trace`
+
+For example:
+
+```bash
+NETPULSE_LOG_LEVEL=debug netpulsed --start
+```
 
 ### The Reader
 
 You can use `netpulse --test` to run the checks the daemon would run and see the
 status. Just using `netpulse` without arguments will result in it trying to load
 and analyze the store.
+
+#### Example Output
+
+The processed output of `netpulse` currently looks somewhat like this:
+
+```txt
+========== General =======================================
+checks                  : 00303088
+checks ok               : 00302357
+checks bad              : 00000731
+success ratio           : 99.76%
+first check at          : 2024-11-09 00:38:00 +01:00
+last check at           : 2025-01-07 01:18:00 +01:00
+
+========== HTTP ==========================================
+checks                  : 00150190
+checks ok               : 00149890
+checks bad              : 00000300
+success ratio           : 99.80%
+first check at          : 2024-11-09 00:38:00 +01:00
+last check at           : 2025-01-07 01:18:00 +01:00
+
+========== ICMP ==========================================
+checks                  : 00152898
+checks ok               : 00152467
+checks bad              : 00000431
+success ratio           : 99.72%
+first check at          : 2024-11-09 03:19:00 +01:00
+last check at           : 2025-01-07 01:18:00 +01:00
+
+========== IPv4 ==========================================
+checks                  : 00151544
+checks ok               : 00151371
+checks bad              : 00000173
+success ratio           : 99.89%
+first check at          : 2024-11-09 00:38:00 +01:00
+last check at           : 2025-01-07 01:18:00 +01:00
+
+========== IPv6 ==========================================
+checks                  : 00151544
+checks ok               : 00150986
+checks bad              : 00000558
+success ratio           : 99.63%
+first check at          : 2024-11-09 00:38:00 +01:00
+last check at           : 2025-01-07 01:18:00 +01:00
+
+========== Outages =======================================
+None
+
+========== Store Metadata ================================
+Hash mem blake3         : a4a4a6e3fac92ecce6e2e11a82d6b22552ad373ec49086007263d770aa36158d
+Hash file sha256        : 804cc9de8714dd19d732fafd54fb4fe188e7053fa24434810fbd86f86cee0fcb
+Store Version (mem)     : 2
+Store Version (file)    : 2
+Store Size (mem)        : 16777248
+Store Size (file)       : 1112087
+File to Mem Ratio       : 0.06628542416491667
+```
+
+### Updating
+
+There are two steps to updating Netpulse:
+
+1. Update the binaries:
+
+```bash
+cargo install netpulse
+```
+
+2. Update the system configuration:
+
+```bash
+sudo netpulsed --setup
+```
+
+3. If using systemd, restart the service:
+
+```bash
+sudo systemctl restart netpulsed.service
+```
 
 ### Files and Directories
 
