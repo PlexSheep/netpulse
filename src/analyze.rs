@@ -35,9 +35,9 @@ use tracing::{error, trace};
 
 use crate::errors::AnalysisError;
 use crate::records::{display_group, Check, CheckType, IpType};
-use crate::store::{Store, OUTAGE_TIME_SPAN};
+use crate::store::Store;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt::{Display, Write};
 use std::hash::Hash;
 use std::os::unix::fs::MetadataExt;
