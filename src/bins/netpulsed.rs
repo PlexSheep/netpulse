@@ -38,7 +38,7 @@ use netpulse::{DAEMON_PID_FILE, DAEMON_USER};
 use nix::errno::Errno;
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
-use sysinfo::{Process, System};
+use sysinfo::System;
 use tracing::{debug, error, info, trace};
 
 mod daemon;
