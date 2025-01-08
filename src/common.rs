@@ -294,7 +294,7 @@ pub fn getpid() -> Option<i32> {
         let pid = match pid_raw.parse() {
             Ok(pid) => pid,
             Err(err) => {
-                eprintln!("Error while parsing the pid from file ('{pid_raw}'): {err}");
+                error!("Error while parsing the pid from file ('{pid_raw}'): {err}");
                 return None;
             }
         };
