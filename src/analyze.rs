@@ -165,7 +165,7 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     let mut outages: Vec<Outage> = fail_groups.iter().map(Outage::from).collect();
     outages.sort();
 
-    writeln!(f, "Latest")?;
+    writeln!(f, "Latest\n")?;
 
     for (outage_idx, outage) in outages.iter().rev().enumerate() {
         writeln!(f, "{outage_idx}:\t{}", &outage.short_report()?)?;
@@ -175,7 +175,7 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
         }
     }
 
-    writeln!(f, "Most severe")?;
+    writeln!(f, "\nMost severe\n")?;
 
     outages.sort_by(Outage::cmp_severity);
 
