@@ -2,11 +2,10 @@ use std::cmp::Ordering;
 use std::fmt::Display;
 use std::fmt::Write;
 
-use caps::all;
 use tracing::error;
 use tracing::warn;
 
-use crate::records::{display_group, Check};
+use crate::records::Check;
 
 use super::{fmt_timestamp, key_value_write, CheckGroup};
 
