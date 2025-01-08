@@ -132,68 +132,67 @@ The processed output of `netpulse` currently looks somewhat like this:
 
 ```txt
 ========== General =======================================
-checks                  : 00303548
-checks ok               : 00302817
-checks bad              : 00000731
+checks                  : 00306208
+checks ok               : 00305466
+checks bad              : 00000742
 success ratio           : 99.76%
 first check at          : 2024-11-09 00:38:00 +01:00
-last check at           : 2025-01-07 03:13:00 +01:00
+last check at           : 2025-01-07 16:01:00 +01:00
 
 ========== HTTP ==========================================
-checks                  : 00150420
-checks ok               : 00150120
-checks bad              : 00000300
+checks                  : 00151750
+checks ok               : 00151447
+checks bad              : 00000303
 success ratio           : 99.80%
 first check at          : 2024-11-09 00:38:00 +01:00
-last check at           : 2025-01-07 03:13:00 +01:00
+last check at           : 2025-01-07 16:01:00 +01:00
 
 ========== ICMP ==========================================
-checks                  : 00153128
-checks ok               : 00152697
-checks bad              : 00000431
+checks                  : 00154458
+checks ok               : 00154019
+checks bad              : 00000439
 success ratio           : 99.72%
 first check at          : 2024-11-09 03:19:00 +01:00
-last check at           : 2025-01-07 03:13:00 +01:00
+last check at           : 2025-01-07 16:01:00 +01:00
 
 ========== IPv4 ==========================================
-checks                  : 00151774
-checks ok               : 00151601
-checks bad              : 00000173
+checks                  : 00153104
+checks ok               : 00152930
+checks bad              : 00000174
 success ratio           : 99.89%
 first check at          : 2024-11-09 00:38:00 +01:00
-last check at           : 2025-01-07 03:13:00 +01:00
+last check at           : 2025-01-07 16:01:00 +01:00
 
 ========== IPv6 ==========================================
-checks                  : 00151774
-checks ok               : 00151216
-checks bad              : 00000558
+checks                  : 00153104
+checks ok               : 00152536
+checks bad              : 00000568
 success ratio           : 99.63%
 first check at          : 2024-11-09 00:38:00 +01:00
-last check at           : 2025-01-07 03:13:00 +01:00
+last check at           : 2025-01-07 16:01:00 +01:00
 
 ========== Outages =======================================
-0:	From 2025-01-06 14:35:00 +01:00 To (None), Total 1
-1:	From 2025-01-06 14:35:00 +01:00 To (None), Total 1
-2:	From 2025-01-06 11:14:00 +01:00 To (None), Total 1
-3:	From 2025-01-06 11:14:00 +01:00 To (None), Total 1
-4:	From 2025-01-05 09:45:00 +01:00 To (None), Total 1
-5:	From 2025-01-05 09:45:00 +01:00 To (None), Total 1
-6:	From 2025-01-05 09:42:00 +01:00 To 2025-01-05 09:42:00 +01:00, Total 2
-7:	From 2025-01-05 01:13:00 +01:00 To (None), Total 1
-8:	From 2025-01-05 01:13:00 +01:00 To (None), Total 1
-9:	From 2025-01-04 14:42:00 +01:00 To (None), Total 1
-10:	From 2025-01-04 14:42:00 +01:00 To (None), Total 1
+0:	From 2025-01-07 15:06:00 +01:00 To 2025-01-07 15:06:00 +01:00, Total 4
+1:	From 2025-01-07 13:44:00 +01:00 To 2025-01-07 13:44:00 +01:00, Total 4
+2:	From 2025-01-07 13:40:00 +01:00 To 2025-01-07 13:41:00 +01:00, Total 8
+3:	From 2025-01-07 13:37:00 +01:00 To 2025-01-07 13:38:00 +01:00, Total 8
+4:	From 2025-01-07 11:50:00 +01:00 To 2025-01-07 11:50:00 +01:00, Total 4
+5:	From 2025-01-06 14:35:00 +01:00 To 2025-01-06 14:35:00 +01:00, Total 4
+6:	From 2025-01-06 11:14:00 +01:00 To 2025-01-06 11:14:00 +01:00, Total 4
+7:	From 2025-01-05 09:45:00 +01:00 To 2025-01-05 09:45:00 +01:00, Total 4
+8:	From 2025-01-05 09:42:00 +01:00 To 2025-01-05 09:42:00 +01:00, Total 4
+9:	From 2025-01-05 01:13:00 +01:00 To 2025-01-05 01:13:00 +01:00, Total 4
 
 showing only the 10 latest outages...
 
 ========== Store Metadata ================================
-Hash mem blake3         : 8eacb2853d44d141d82d3b8232c27edb530df6add5a40b4370facb0b634ade3d
-Hash file sha256        : 67c30c020f176615fb9956126ad9b27c69d556870f17fa6cadd37962be33258d
+Hash mem blake3         : 9f942007cb174234c4bd0274f5394e41e6c1dffcf44056a50d947c3b99c7e959
+Hash file sha256        : c0b6958069c88924549b743ad6d024295c44501564f7b2865d17e8c31e67cd0f
 Store Version (mem)     : 2
 Store Version (file)    : 2
 Store Size (mem)        : 16777248
-Store Size (file)       : 1113762
-File to Mem Ratio       : 0.06638526175449036
+Store Size (file)       : 1123673
+File to Mem Ratio       : 0.06697600226211116
 ```
 
 ### Files and Directories
