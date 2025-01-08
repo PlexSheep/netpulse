@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [0.8.0](https://github.com/PlexSheep/netpulse/compare/v0.7.0...v0.8.0)
+
+### 🐛 Bug Fixes
+
+- *(common)* Ignore thread processes for getpid_running #50 - ([a546fb4](https://github.com/PlexSheep/netpulse/commit/a546fb4e6f90f79479d99385e39b6c365f55bb97))
+- *(outage)* Is_empty was removed in a regression - ([716ad30](https://github.com/PlexSheep/netpulse/commit/716ad303270194ef8232e0f84e7277af35b5da5f))
+
+### 🚜 Refactor
+
+- *(analyze)* Stylize output of outages a bit more - ([39d79d7](https://github.com/PlexSheep/netpulse/commit/39d79d72f16abcb3afa6f13b7d5be8d1331995a3))
+- *(outage)* [**breaking**] Outage must contain at least one check - ([0f00479](https://github.com/PlexSheep/netpulse/commit/0f004791337f49834124d9aabe67c2d6cfde7f2a))
+- [**breaking**] Get rid of the pidfile and find a better way to get the running pid #48 - ([295ea4f](https://github.com/PlexSheep/netpulse/commit/295ea4f66e432b896c0111e37e523ffaa5eaa2b3))
+
+### 📚 Documentation
+
+- *(outage)* Add api documentation for whole module - ([9f282ce](https://github.com/PlexSheep/netpulse/commit/9f282ce0cc30766b0f7b9c39569cced90ae9f49f))
+- Add the adjusted changelog, probably wont live long - ([77cd6e3](https://github.com/PlexSheep/netpulse/commit/77cd6e396ba940786d2e062d2e505c314eaf3207))
+
+
 ## [0.7.0-rc1.1](https://github.com/PlexSheep/netpulse/compare/v0.7.0-rc1...v0.7.0-rc1.1)
 
 ### ⛰️ Features
