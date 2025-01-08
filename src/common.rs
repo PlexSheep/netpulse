@@ -242,22 +242,22 @@ pub fn exec_cmd_for_user(cmd: &mut Command, skip_checks: bool) {
 
 /// Get the pid of the running netpulsed daemon
 pub fn getpid_running() -> Option<Pid> {
+    let pid_of_current_process = std::process::id();
     let s = System::new_all();
-    let mut processes: Vec<&sysinfo::Process> =
-        s.processes_by_exact_name("netpulsed".as_ref()).collect();
+    let mut processes: Vec<&sysinfo::Process> = s
+        .processes_by_exact_name("netpulsed".as_ref())
+        .filter(
+            |p| p.thread_kind().is_none(), /* only real processes, not threads */
+        )
+        .filter(|p| p.pid().as_u32() != pid_of_current_process) // ignore the currently running
+        // process
+        .collect();
 
     if processes.is_empty() {
         None
     } else if processes.len() == 1 {
         Some(processes[0].pid())
     } else {
-        // FIXME: for some reason, this shows many processes even if only two are running.
-        // Expected:
-        // 1. the real daemon
-        // 2. this current process, which is also netpulsed
-        // BUT:
-        // For some absurd reason, there are 18 processes running
-        // Upstream Issue: https://github.com/GuillaumeGomez/sysinfo/issues/1449
         warn!("netpulsed is running multiple times ({})", processes.len());
         processes.sort_by_key(|a| a.pid());
         debug!(
