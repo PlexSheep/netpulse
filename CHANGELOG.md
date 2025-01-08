@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [0.7.0-rc1.1](https://github.com/PlexSheep/netpulse/compare/v0.7.0-rc1...v0.7.0-rc1.1)
+
+### ⛰️ Features
+
+- *(outage)* Display sorted by outage severity #40 - ([e138d77](https://github.com/PlexSheep/netpulse/commit/e138d77796f2cd6dd9c8aae5751089af6ceed6e8))
+- *(outage)* Add severity to display #44 - ([3c1f47a](https://github.com/PlexSheep/netpulse/commit/3c1f47a950bd891e82decf8b18970b07bc4e960a))
+- *(outage)* Impl PartialOrd - ([5851700](https://github.com/PlexSheep/netpulse/commit/5851700e44728133170deaa5659e203fa9fbf71d))
+- *(outage)* Add serevity struct and creation #44 - ([515b1fc](https://github.com/PlexSheep/netpulse/commit/515b1fcdb4ba0b714bf8f16647d72008784630f6))
+
+### 🚜 Refactor
+
+- *(analyze)* Move outage things to a new module - ([41b3d66](https://github.com/PlexSheep/netpulse/commit/41b3d66838effb348ffaeb44d845766747102545))
+- Use error where eprintln was - ([39c8568](https://github.com/PlexSheep/netpulse/commit/39c85681ae6a7d9a599d8baabec5897e191fdd3c))
+
+### 📚 Documentation
+
+- *(readme)* Adjust example reader output - ([9ae1d19](https://github.com/PlexSheep/netpulse/commit/9ae1d19d6578506bfaa43a3935f3a6d9f4980de9))
+
+### ⚙️ Miscellaneous Tasks
+
+- Automatic Rust CI changes - ([d8ca3eb](https://github.com/PlexSheep/netpulse/commit/d8ca3eb50771a0a48d9cfbf7e5e8283ff320cbce))
+
+
 ## [0.6.1](https://github.com/PlexSheep/netpulse/compare/v0.6.0...v0.6.1)
 
 ### 🚜 Refactor
