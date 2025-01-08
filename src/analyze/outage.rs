@@ -1,7 +1,10 @@
+use std::cmp::Ordering;
 use std::fmt::Display;
 use std::fmt::Write;
 
+use caps::all;
 use tracing::error;
+use tracing::warn;
 
 use crate::records::{display_group, Check};
 
@@ -12,7 +15,7 @@ pub struct FromRawSeverityError(f64);
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Severity {
-    Total,
+    Complete,
     Partial(f64),
     None,
 }
@@ -23,7 +26,7 @@ impl TryFrom<f64> for Severity {
             return Err(FromRawSeverityError(value));
         }
         Ok(if value == 1.0 {
-            Severity::Total
+            Severity::Complete
         } else if value == 0.0 {
             Severity::None
         } else {
@@ -37,10 +40,10 @@ impl TryFrom<f64> for Severity {
 impl PartialOrd for Severity {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         match (self, other) {
-            (Self::Total, Self::Total) => Some(std::cmp::Ordering::Equal),
-            (Self::Total, _) => Some(std::cmp::Ordering::Greater),
+            (Self::Complete, Self::Complete) => Some(std::cmp::Ordering::Equal),
+            (Self::Complete, _) => Some(std::cmp::Ordering::Greater),
             (Self::Partial(p1), Self::Partial(p2)) => p1.partial_cmp(p2),
-            (Self::Partial(_), Self::Total) => Some(std::cmp::Ordering::Less),
+            (Self::Partial(_), Self::Complete) => Some(std::cmp::Ordering::Less),
             (Self::Partial(_), Self::None) => Some(std::cmp::Ordering::Greater),
             (Self::None, Self::None) => Some(std::cmp::Ordering::Equal),
             (Self::None, _) => Some(std::cmp::Ordering::Less),
@@ -51,7 +54,7 @@ impl PartialOrd for Severity {
 impl Display for Severity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Total => write!(f, "Total")?,
+            Self::Complete => write!(f, "Complete")?,
             Self::None => write!(f, "No Outage")?,
             Self::Partial(p) => write!(f, "Partial ({:.02} %)", p * 100.0)?,
         }
@@ -68,7 +71,7 @@ impl Display for Severity {
 ///
 /// This struct helps track and analyze network connectivity issues
 /// over time.
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 pub struct Outage<'check> {
     /// All checks that failed during this outage period
     all: Vec<&'check Check>,
@@ -81,9 +84,8 @@ impl<'check> Outage<'check> {
     ///
     /// * `all_checks` - Slice of all failed checks in this period
     pub fn new(all_checks: &[&'check Check]) -> Self {
-        {
-            let mut f = String::new();
-            display_group(all_checks, &mut f).expect("could not dump checks");
+        if all_checks.is_empty() {
+            warn!("created an empty outage");
         }
         let mut all = all_checks.to_vec();
         all.sort();
@@ -121,7 +123,7 @@ impl<'check> Outage<'check> {
             " To {}",
             fmt_timestamp(self.last().unwrap().timestamp_parsed()),
         )?;
-        write!(&mut buf, ", Total {}", self.len())?;
+        write!(&mut buf, ", Total {:>6}", self.len())?;
         write!(&mut buf, ", {}", self.severity())?;
         Ok(buf)
     }
@@ -143,6 +145,17 @@ impl<'check> Outage<'check> {
             all.iter().filter(|a| !a.is_success()).count() as f64 / all.len() as f64;
         Severity::try_from(percentage).expect("calculated more than 100% success")
     }
+
+    pub fn cmp_severity(&self, other: &Self) -> Ordering {
+        match self
+            .severity()
+            .partial_cmp(&other.severity())
+            .unwrap_or(Ordering::Equal)
+        {
+            Ordering::Equal => self.len().cmp(&other.len()),
+            other => other,
+        }
+    }
 }
 
 impl<'check> From<&'check [Check]> for Outage<'check> {
@@ -152,6 +165,12 @@ impl<'check> From<&'check [Check]> for Outage<'check> {
         }
         let a: Vec<&Check> = value.iter().collect();
         Outage::new(&a)
+    }
+}
+
+impl<'check> From<&'check Vec<&Check>> for Outage<'check> {
+    fn from(value: &'check Vec<&Check>) -> Self {
+        Outage::new(value)
     }
 }
 

@@ -162,15 +162,27 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     }
 
     let fail_groups = fail_groups(&all);
-    for (outage_idx, group) in fail_groups.into_iter().rev().enumerate() {
-        if group.is_empty() {
-            error!("empty outage group");
-            continue;
-        }
-        let outage = Outage::from(group);
+    let mut outages: Vec<Outage> = fail_groups.iter().map(Outage::from).collect();
+    outages.sort();
+
+    writeln!(f, "Latest")?;
+
+    for (outage_idx, outage) in outages.iter().rev().enumerate() {
         writeln!(f, "{outage_idx}:\t{}", &outage.short_report()?)?;
         if outage_idx >= 9 {
-            writeln!(f, "\nshowing only the 10 latest outages...")?;
+            writeln!(f, "\nshowing only the 10 latest outages...\n")?;
+            break;
+        }
+    }
+
+    writeln!(f, "Most severe")?;
+
+    outages.sort_by(Outage::cmp_severity);
+
+    for (outage_idx, outage) in outages.iter().rev().enumerate() {
+        writeln!(f, "{outage_idx}:\t{}", &outage.short_report()?)?;
+        if outage_idx >= 9 {
+            writeln!(f, "\nshowing only the 10 most severe outages...")?;
             break;
         }
     }
