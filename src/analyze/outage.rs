@@ -181,6 +181,7 @@ impl Display for Outage<'_> {
             fmt_timestamp(self.last().unwrap().timestamp_parsed()),
         )?;
         key_value_write(&mut buf, "Total", self.len())?;
+        key_value_write(&mut buf, "Severity", self.severity())?;
         writeln!(buf, "\nFirst\n{}", self.last().unwrap())?;
         writeln!(buf, "\nLast\n{}", self.last().unwrap())?;
         write!(f, "{buf}")?;
