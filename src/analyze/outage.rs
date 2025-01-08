@@ -225,6 +225,12 @@ impl<'check> Outage<'check> {
         self.all.len()
     }
 
+    /// Returns the is empty of this [`Outage`].
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Calculates the severity of this outage.
     ///
     /// Severity is based on the percentage of failed checks:
