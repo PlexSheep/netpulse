@@ -7,6 +7,33 @@ use crate::records::{display_group, Check};
 
 use super::{fmt_timestamp, key_value_write, CheckGroup};
 
+#[derive(Debug, PartialEq, Clone, Copy, PartialOrd)]
+pub struct FromRawSeverityError(f64);
+
+#[derive(Debug, PartialEq, Clone, Copy, PartialOrd)]
+pub enum Severity {
+    Total,
+    Partial(f64),
+    None,
+}
+
+impl TryFrom<f64> for Severity {
+    fn try_from(value: f64) -> Result<Self, Self::Error> {
+        if value > 1.0 {
+            return Err(FromRawSeverityError(value));
+        }
+        Ok(if value == 1.0 {
+            Severity::Total
+        } else if value == 0.0 {
+            Severity::None
+        } else {
+            Severity::Partial(value)
+        })
+    }
+
+    type Error = FromRawSeverityError;
+}
+
 /// Represents a period of consecutive failed checks.
 ///
 /// An outage is defined by:
@@ -82,6 +109,13 @@ impl<'check> Outage<'check> {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    pub fn severity(&self) -> Severity {
+        let all = self.all();
+        let percentage: f64 =
+            all.len() as f64 / all.iter().filter(|a| !a.is_success()).count() as f64;
+        Severity::try_from(percentage).expect("calculated more than 100% success")
     }
 }
 
