@@ -162,7 +162,10 @@ fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
     }
 
     let fail_groups = fail_groups(&all);
-    let mut outages: Vec<Outage> = fail_groups.iter().map(Outage::from).collect();
+    let mut outages: Vec<Outage> = fail_groups
+        .iter()
+        .map(|a| Outage::try_from(a).expect("check fail group was empty"))
+        .collect();
     outages.sort();
 
     writeln!(f, "Latest\n")?;
@@ -207,7 +210,7 @@ pub fn outages_detailed(all: &[&Check], f: &mut String, dump: bool) -> Result<()
             error!("empty outage group");
             continue;
         }
-        let outage = Outage::from(group);
+        let outage = Outage::try_from(group).expect("fail group was empty");
         writeln!(f, "{outage_idx}:\n{}", more_indent(&outage.to_string()))?;
         if dump {
             let mut buf = String::new();
@@ -475,7 +478,10 @@ mod tests {
             assert_eq!(fg[0].len(), 8);
             assert_eq!(fg[1].len(), 4);
 
-            let _outages = [Outage::from(fg[0].clone()), Outage::from(fg[1].clone())];
+            let _outages = [
+                Outage::try_from(fg[0].clone()).unwrap(),
+                Outage::try_from(fg[1].clone()).unwrap(),
+            ];
         }
     }
 

@@ -15,19 +15,42 @@ use std::cmp::Ordering;
 use std::fmt::Display;
 use std::fmt::Write;
 
+use thiserror::Error;
 use tracing::error;
-use tracing::warn;
 
 use crate::records::Check;
 
 use super::{fmt_timestamp, key_value_write, CheckGroup};
 
-/// Error returned when trying to create a [`Severity`] from an invalid value.
+#[derive(Error, Debug, Clone, Copy)]
+pub enum SeverityError {
+    #[error("Ratio of severity out of range: {0}")]
+    BadRawPercentage(f64),
+}
+
+/// Error indicating an attempt to create an outage with no checks.
 ///
-/// Returned when attempting to create a [`Severity`] from a value greater than 1.0
-/// since severity is represented as a percentage between 0.0 and 1.0.
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub struct FromRawSeverityError(f64);
+/// This error occurs when trying to create an [`Outage`] from an empty collection
+/// of checks. Since outages must contain at least one check to be meaningful,
+/// this represents an invalid state.
+///
+/// # Examples
+///
+/// ```rust
+/// use netpulse::analyze::outage::{Outage, OutageError};
+/// use std::convert::TryFrom;
+///
+/// let empty_checks = vec![];
+/// assert!(matches!(
+///     Outage::try_from(&empty_checks[..]),
+///     Err(OutageError::EmptyOutage)
+/// ));
+/// ```
+#[derive(Error, Debug, Clone, Copy)]
+pub enum OutageError {
+    #[error("tried to create an empty outage (without any contained checks)")]
+    EmptyOutage,
+}
 
 /// Classification of outage impact severity.
 ///
@@ -61,7 +84,7 @@ pub enum Severity {
 impl TryFrom<f64> for Severity {
     fn try_from(value: f64) -> Result<Self, Self::Error> {
         if value > 1.0 {
-            return Err(FromRawSeverityError(value));
+            return Err(SeverityError::BadRawPercentage(value));
         }
         Ok(if value == 1.0 {
             Severity::Complete
@@ -72,7 +95,7 @@ impl TryFrom<f64> for Severity {
         })
     }
 
-    type Error = FromRawSeverityError;
+    type Error = SeverityError;
 }
 
 impl PartialOrd for Severity {
@@ -118,7 +141,7 @@ impl Display for Severity {
 /// use netpulse::analyze::outage::Outage;
 ///
 /// # let checks = vec![];
-/// let outage = Outage::new(&checks);
+/// let outage = Outage::build(&checks).unwrap();
 ///
 /// println!("Outage report:\n{}", outage.short_report().unwrap());
 /// ```
@@ -137,20 +160,21 @@ impl<'check> Outage<'check> {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use netpulse::records::Check;
     /// use netpulse::analyze::outage::Outage;
     ///
     /// # let checks = vec![];
-    /// let outage = Outage::new(&checks);
+    /// let outage = Outage::build(&checks).unwrap();
     /// ```
-    pub fn new(all_checks: &[&'check Check]) -> Self {
+    pub fn build(all_checks: &[&'check Check]) -> Result<Self, OutageError> {
         if all_checks.is_empty() {
-            warn!("created an empty outage");
+            error!("tried to create an empty outage");
+            return Err(OutageError::EmptyOutage);
         }
         let mut all = all_checks.to_vec();
         all.sort();
-        Self { all }
+        Ok(Self { all })
     }
 
     /// Returns a reference to all [Checks](Check) of this [`Outage`].
@@ -180,9 +204,6 @@ impl<'check> Outage<'check> {
     ///
     /// Returns [`std::fmt::Error`] if string formatting fails.
     pub fn short_report(&self) -> Result<String, std::fmt::Error> {
-        if self.is_empty() {
-            error!("Outage does not contain any checks");
-        }
         let mut buf: String = String::new();
         write!(
             &mut buf,
@@ -204,12 +225,6 @@ impl<'check> Outage<'check> {
         self.all.len()
     }
 
-    /// Returns true if this [`Outage`] is empty.
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
     /// Calculates the severity of this outage.
     ///
     /// Severity is based on the percentage of failed checks:
@@ -224,7 +239,7 @@ impl<'check> Outage<'check> {
     /// use netpulse::analyze::outage::Outage;
     ///
     /// # let checks = vec![];
-    /// let outage = Outage::new(&checks);
+    /// let outage = Outage::build(&checks).unwrap();
     /// println!("Severity: {}", outage.severity());
     /// ```
     pub fn severity(&self) -> Severity {
@@ -250,36 +265,36 @@ impl<'check> Outage<'check> {
     }
 }
 
-impl<'check> From<&'check [Check]> for Outage<'check> {
-    fn from(value: &'check [Check]) -> Self {
-        if value.is_empty() {
-            panic!("tried to make an outage from an empty check group");
-        }
+impl<'check> TryFrom<&'check [Check]> for Outage<'check> {
+    type Error = OutageError;
+
+    fn try_from(value: &'check [Check]) -> Result<Self, Self::Error> {
         let a: Vec<&Check> = value.iter().collect();
-        Outage::new(&a)
+        Outage::build(&a)
     }
 }
 
-impl<'check> From<&'check Vec<&Check>> for Outage<'check> {
-    fn from(value: &'check Vec<&Check>) -> Self {
-        Outage::new(value)
+impl<'check> TryFrom<&'check Vec<&Check>> for Outage<'check> {
+    type Error = OutageError;
+
+    fn try_from(value: &'check Vec<&Check>) -> Result<Self, Self::Error> {
+        Outage::build(value)
     }
 }
 
-impl<'check> From<CheckGroup<'check>> for Outage<'check> {
-    fn from(value: CheckGroup<'check>) -> Self {
+impl<'check> TryFrom<CheckGroup<'check>> for Outage<'check> {
+    type Error = OutageError;
+
+    fn try_from(value: CheckGroup<'check>) -> Result<Self, Self::Error> {
         if value.is_empty() {
-            panic!("tried to make an outage from an empty check group");
+            return Err(OutageError::EmptyOutage);
         }
-        Outage::new(&value)
+        Outage::build(&value)
     }
 }
 
 impl Display for Outage<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.is_empty() {
-            error!("Outage does not contain any checks");
-        }
         let mut buf: String = String::new();
         key_value_write(
             &mut buf,
