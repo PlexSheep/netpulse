@@ -7,10 +7,10 @@ use crate::records::{display_group, Check};
 
 use super::{fmt_timestamp, key_value_write, CheckGroup};
 
-#[derive(Debug, PartialEq, Clone, Copy, PartialOrd)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct FromRawSeverityError(f64);
 
-#[derive(Debug, PartialEq, Clone, Copy, PartialOrd)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Severity {
     Total,
     Partial(f64),
@@ -32,6 +32,31 @@ impl TryFrom<f64> for Severity {
     }
 
     type Error = FromRawSeverityError;
+}
+
+impl PartialOrd for Severity {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (Self::Total, Self::Total) => Some(std::cmp::Ordering::Equal),
+            (Self::Total, _) => Some(std::cmp::Ordering::Greater),
+            (Self::Partial(p1), Self::Partial(p2)) => p1.partial_cmp(p2),
+            (Self::Partial(_), Self::Total) => Some(std::cmp::Ordering::Less),
+            (Self::Partial(_), Self::None) => Some(std::cmp::Ordering::Greater),
+            (Self::None, Self::None) => Some(std::cmp::Ordering::Equal),
+            (Self::None, _) => Some(std::cmp::Ordering::Less),
+        }
+    }
+}
+
+impl Display for Severity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Total => write!(f, "Total")?,
+            Self::None => write!(f, "No Outage")?,
+            Self::Partial(p) => write!(f, "Partial ({:.02} %)", p * 100.0)?,
+        }
+        Ok(())
+    }
 }
 
 /// Represents a period of consecutive failed checks.
@@ -97,6 +122,7 @@ impl<'check> Outage<'check> {
             fmt_timestamp(self.last().unwrap().timestamp_parsed()),
         )?;
         write!(&mut buf, ", Total {}", self.len())?;
+        write!(&mut buf, ", {}", self.severity())?;
         Ok(buf)
     }
 
@@ -114,7 +140,7 @@ impl<'check> Outage<'check> {
     pub fn severity(&self) -> Severity {
         let all = self.all();
         let percentage: f64 =
-            all.len() as f64 / all.iter().filter(|a| !a.is_success()).count() as f64;
+            all.iter().filter(|a| !a.is_success()).count() as f64 / all.len() as f64;
         Severity::try_from(percentage).expect("calculated more than 100% success")
     }
 }
