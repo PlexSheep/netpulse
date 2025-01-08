@@ -29,7 +29,7 @@ use std::sync::atomic::AtomicBool;
 
 use getopts::Options;
 use netpulse::common::{
-    confirm, exec_cmd_for_user, getpid, getpid_running, init_logging, print_usage, root_guard,
+    confirm, exec_cmd_for_user, getpid_running, init_logging, print_usage, root_guard,
     setup_panic_handler,
 };
 use netpulse::errors::RunError;
@@ -38,6 +38,7 @@ use netpulse::{DAEMON_PID_FILE, DAEMON_USER};
 use nix::errno::Errno;
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
+use sysinfo::System;
 use tracing::{debug, error, info, trace};
 
 mod daemon;
@@ -144,35 +145,20 @@ fn setup_general(skip_checks: bool) -> Result<(), RunError> {
 }
 
 fn setup_systemd(skip_checks: bool) -> Result<(), RunError> {
-    let mut is_running: bool = getpid_running().is_some();
-    info!("netpulsed is running: {is_running}");
-    let mut stop_requested = false;
-
-    while is_running {
-        if !stop_requested && is_running {
-            println!("netpulsed.service needs to be stopped if it's running.");
-            println!(
-                "To stop the running netpulsed.service (using systemd), run the following as root:"
-            );
-            println!("  systemctl stop netpulsed.service");
-            if !confirm("Do this automatically now?") {
-                stop_requested = true;
-                continue;
-            }
-            exec_cmd_for_user(
-                Command::new("systemctl")
-                    .arg("stop")
-                    .arg("netpulsed.service"),
-                skip_checks,
-            );
-            stop_requested = true;
-            println!(
-                "waiting until netpulsed is no longer running (pid: {:?})",
-                getpid()
-            );
+    if let Some(pid) = getpid_running() {
+        let s = System::new_all();
+        info!("daemon runs with pid {pid}");
+        let process = s
+            .process(pid)
+            .expect("process for the pid of the daemon not found");
+        if !skip_checks || !confirm("terminate the daemon now?") {
+            println!("stopping setup");
+            std::process::exit(0);
         }
-        is_running = getpid_running().is_some();
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        process
+            .kill_with(sysinfo::Signal::Term)
+            .expect("SIGTERM does not exist on this platform");
+        process.wait(); // wait until the daemon has stopped
     }
 
     setup_general(skip_checks)?;
@@ -227,15 +213,9 @@ fn setup_systemd(skip_checks: bool) -> Result<(), RunError> {
 }
 
 fn infod() {
-    match getpid() {
+    match getpid_running() {
         Some(pid) => {
-            if pid_runs(pid) {
-                println!("netpulsed is running with pid {pid}")
-            } else {
-                println!(
-                    "the pid file exists with pid {pid}, but no process with that pid is running"
-                )
-            }
+            println!("netpulsed is running with pid {pid}")
         }
         None => println!("netpulsed is not running"),
     }
@@ -253,7 +233,8 @@ fn endd() {
             println!("netpulsed is not running");
             return;
         }
-        Some(raw) => Pid::from_raw(raw),
+        Some(raw) => Pid::from_raw(raw.as_u32() as i32), // this is weird, sysinfo has another raw type
+                                                         // for pids than nix
     };
 
     match signal::kill(pid, Signal::SIGTERM) {

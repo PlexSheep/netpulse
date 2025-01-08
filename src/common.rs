@@ -38,10 +38,9 @@ use std::io::{self, Write as _};
 use std::process::Command;
 use std::str::FromStr;
 
-use crate::DAEMON_PID_FILE;
-
 use getopts::Options;
-use tracing::{error, trace};
+use sysinfo::{Pid, System};
+use tracing::{debug, error, trace, warn};
 use tracing_subscriber::FmtSubscriber;
 
 /// Environment variable name for configuring log level
@@ -241,64 +240,31 @@ pub fn exec_cmd_for_user(cmd: &mut Command, skip_checks: bool) {
     }
 }
 
-/// Checks if the netpulse daemon is currently running.
-///
-/// # Returns
-///
-/// * `Some(pid)` - Daemon is running with the given PID
-/// * `None` - Daemon is not running
-///
-/// Checks both PID file existence and process existence.
-pub fn getpid_running() -> Option<i32> {
-    getpid().filter(|p| pid_runs(*p))
-}
+/// Get the pid of the running netpulsed daemon
+pub fn getpid_running() -> Option<Pid> {
+    let pid_of_current_process = std::process::id();
+    let s = System::new_all();
+    let mut processes: Vec<&sysinfo::Process> = s
+        .processes_by_exact_name("netpulsed".as_ref())
+        .filter(
+            |p| p.thread_kind().is_none(), /* only real processes, not threads */
+        )
+        .filter(|p| p.pid().as_u32() != pid_of_current_process) // ignore the currently running
+        // process
+        .collect();
 
-/// Checks if a process with the given PID exists.
-///
-/// # Arguments
-///
-/// * `pid` - Process ID to check
-///
-/// # Returns
-///
-/// * `true` if process exists
-/// * `false` if process does not exist
-///
-/// # Panics
-///
-/// Panics if unable to check process existence (e.g., permission denied)
-pub fn pid_runs(pid: i32) -> bool {
-    std::fs::exists(format!("/proc/{pid}")).expect("could not check if the process exists")
-}
-
-/// Reads the daemon's PID from its PID file.
-///
-/// # Returns
-///
-/// * `Some(pid)` - Successfully read PID from file
-/// * `None` - If PID file doesn't exist or contains invalid data
-///
-/// # Panics
-///
-/// Panics if:
-/// - Unable to check PID file existence
-/// - PID file exists but can't be read
-pub fn getpid() -> Option<i32> {
-    if !std::fs::exists(DAEMON_PID_FILE).expect("couldn't check if the pid file exists") {
+    if processes.is_empty() {
         None
+    } else if processes.len() == 1 {
+        Some(processes[0].pid())
     } else {
-        let pid_raw = std::fs::read_to_string(DAEMON_PID_FILE)
-            .expect("pid file does not exist")
-            .trim()
-            .to_string();
-        let pid = match pid_raw.parse() {
-            Ok(pid) => pid,
-            Err(err) => {
-                error!("Error while parsing the pid from file ('{pid_raw}'): {err}");
-                return None;
-            }
-        };
-        Some(pid)
+        warn!("netpulsed is running multiple times ({})", processes.len());
+        processes.sort_by_key(|a| a.pid());
+        debug!(
+            "listing netpulsed processes: {:?}",
+            processes.iter().map(|p| p.pid()).collect::<Vec<_>>()
+        );
+        Some(processes[0].pid())
     }
 }
 

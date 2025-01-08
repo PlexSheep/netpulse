@@ -35,6 +35,7 @@ tracing-subscriber = { version = "0.3.18", optional = true }
 chrono = { version = "0.4.38", optional = false }
 blake3 = "1.5.4"
 serde_repr = "0.1.19"
+sysinfo = "0.33.1"
 
 [[bin]] # client
 name = "netpulse"
