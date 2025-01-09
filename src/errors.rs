@@ -23,7 +23,11 @@
 //! }
 //! ```
 
+use std::error::Error;
+
 use flagset::FlagSet;
+#[cfg(feature = "graph")]
+use plotters::prelude::DrawingAreaErrorKind;
 use thiserror::Error;
 
 use crate::records::CheckFlag;
@@ -189,5 +193,10 @@ pub enum AnalysisError {
         /// Underlying error
         #[from]
         source: std::io::Error,
+    },
+    #[cfg(feature = "graph")]
+    #[cfg_attr(feature = "graph", error("error while drawing the graph"))]
+    GraphDraw {
+        reason: String, // plotters error type use generics, and that's just a pain
     },
 }

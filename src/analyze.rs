@@ -43,6 +43,7 @@ use std::os::unix::fs::MetadataExt;
 
 use self::outage::Outage;
 
+pub mod graph;
 pub mod outage;
 
 /// Formatting rules for timestamps that are easily readable by humans.
@@ -223,20 +224,22 @@ pub fn outages_detailed(all: &[&Check], f: &mut String, dump: bool) -> Result<()
     Ok(())
 }
 
-fn group_by_time<'check>(checks: &[&'check Check]) -> HashMap<i64, CheckGroup<'check>> {
+fn group_by_time<'check>(
+    checks: impl IntoIterator<Item = &'check Check>,
+) -> HashMap<i64, CheckGroup<'check>> {
     let mut groups: HashMap<i64, CheckGroup<'check>> = HashMap::new();
 
-    for check in checks {
+    for check in checks.into_iter() {
         groups.entry(check.timestamp()).or_default().push(check);
     }
 
     groups
 }
 
-fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'check>> {
+fn fail_groups<'check>(checks: &'check [&'check Check]) -> Vec<CheckGroup<'check>> {
     trace!("calculating fail groups");
     let mut groups: Vec<CheckGroup<'check>> = Vec::new();
-    let by_time = group_by_time(checks);
+    let by_time = group_by_time(checks.iter().map(|a| *a));
     let mut time_sorted_values: Vec<&Vec<&Check>> = by_time.values().collect();
     time_sorted_values.sort();
 
@@ -491,7 +494,7 @@ mod tests {
         let base_checks = basic_check_set();
         let checks: Vec<&Check> = base_checks.iter().collect();
 
-        let tg = group_by_time(&checks);
+        let tg = group_by_time(checks.iter().map(|a| *a));
         assert_eq!(tg.len(), 5);
         for (k, v) in tg {
             assert_eq!(v.len(), 4);

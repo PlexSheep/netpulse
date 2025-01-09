@@ -12,11 +12,12 @@ homepage = "https://github.com/PlexSheep/netpulse"
 repository = "https://github.com/PlexSheep/netpulse"
 
 [features]
-default = ["compression", "http", "ping", "executable"]
+default = ["compression", "http", "ping", "executable", "graph"]
 compression = ["dep:zstd"]
 ping = ["dep:ping"]
 http = ["dep:curl"]
 executable = ["dep:tracing-subscriber"]
+graph = ["dep:plotters"]
 
 [dependencies]
 getopts = "0.2"
@@ -36,6 +37,7 @@ chrono = { version = "0.4.38", optional = false }
 blake3 = "1.5.4"
 serde_repr = "0.1.19"
 sysinfo = "0.33.1"
+plotters = { version = "0.3.7", optional = true }
 
 [[bin]] # client
 name = "netpulse"

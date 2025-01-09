@@ -29,6 +29,12 @@ fn main() {
     opts.optflag("h", "help", "print this help menu");
     opts.optflag("V", "version", "print the version");
     opts.optflag("t", "test", "test run all checks");
+    #[cfg(feature = "graph")]
+    opts.optflag(
+        "g",
+        "graph",
+        "make a graph showing how severely impaired networking was in each time period",
+    );
     opts.optflag(
         "o",
         "outages",
@@ -58,6 +64,14 @@ fn main() {
     if matches.opt_present("version") {
         print_version()
     }
+    #[cfg(feature = "graph")]
+    if matches.opt_present("graph") {
+        if let Err(e) = graph() {
+            error!("{e}");
+            std::process::exit(1)
+        }
+        std::process::exit(0)
+    }
     if matches.opt_present("outages") {
         if let Err(e) = print_outages(None, matches.opt_present("dump")) {
             error!("{e}");
@@ -82,6 +96,21 @@ fn main() {
         error!("{e}");
         std::process::exit(1)
     }
+}
+
+#[cfg(feature = "graph")]
+fn graph() -> Result<(), RunError> {
+    use tracing::info;
+
+    let store = Store::load(true)?;
+    let mut path = std::env::current_dir()?;
+    path.push("netpulse_diagram.png");
+    if let Err(e) = analyze::graph::draw_checks(store.checks(), &path) {
+        eprintln!("Error while making the analysis graph: {e}");
+        std::process::exit(1);
+    }
+    info!("saved the diagram to {path:?}");
+    Ok(())
 }
 
 fn test_checks() -> Result<(), RunError> {

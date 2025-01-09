@@ -81,6 +81,14 @@ pub enum Severity {
     None,
 }
 
+impl<'checks> From<&[&Check]> for Severity {
+    fn from(value: &[&Check]) -> Self {
+        let percentage: f64 =
+            value.iter().filter(|a| !a.is_success()).count() as f64 / value.len() as f64;
+        Severity::try_from(percentage).expect("calculated more than 100% success")
+    }
+}
+
 impl TryFrom<f64> for Severity {
     fn try_from(value: f64) -> Result<Self, Self::Error> {
         if value > 1.0 {
@@ -120,6 +128,16 @@ impl Display for Severity {
             Self::Partial(p) => write!(f, "Partial ({:.02} %)", p * 100.0)?,
         }
         Ok(())
+    }
+}
+
+impl From<Severity> for f64 {
+    fn from(value: Severity) -> Self {
+        match value {
+            Severity::Complete => 1.0,
+            Severity::Partial(p) => p,
+            Severity::None => 0.0,
+        }
     }
 }
 
@@ -196,7 +214,7 @@ impl<'check> Outage<'check> {
     ///
     /// The report includes:
     /// - Start time
-    /// - End time  
+    /// - End time
     /// - Total number of checks
     /// - Severity classification
     ///
@@ -250,9 +268,7 @@ impl<'check> Outage<'check> {
     /// ```
     pub fn severity(&self) -> Severity {
         let all = self.all();
-        let percentage: f64 =
-            all.iter().filter(|a| !a.is_success()).count() as f64 / all.len() as f64;
-        Severity::try_from(percentage).expect("calculated more than 100% success")
+        Severity::from(all)
     }
 
     /// Compares two outages by severity then by duration.
