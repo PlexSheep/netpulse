@@ -28,7 +28,7 @@ pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), Analy
         x_axis.push(t);
     }
 
-    for group in time_grouped.iter().map(|(k, v)| v) {
+    for group in time_grouped.values() {
         data.push((
             group[0].timestamp_parsed(),
             Severity::from(group.as_slice()),

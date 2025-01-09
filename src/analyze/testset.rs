@@ -39,7 +39,6 @@ pub fn generate_dataset(seed: u64) -> Store {
     let mut time;
     debug!("first r: {r}");
     for idx in 0..N {
-        r = rng.gen();
         time = base_time + TimeDelta::minutes(idx as i64);
 
         r = rng.gen();

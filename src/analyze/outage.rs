@@ -81,7 +81,7 @@ pub enum Severity {
     None,
 }
 
-impl<'checks> From<&[&Check]> for Severity {
+impl From<&[&Check]> for Severity {
     fn from(value: &[&Check]) -> Self {
         let percentage: f64 =
             value.iter().filter(|a| !a.is_success()).count() as f64 / value.len() as f64;
