@@ -241,7 +241,7 @@ pub fn group_by_time<'check>(
 fn fail_groups<'check>(checks: &'check [&'check Check]) -> Vec<CheckGroup<'check>> {
     trace!("calculating fail groups");
     let mut groups: Vec<CheckGroup<'check>> = Vec::new();
-    let by_time = group_by_time(checks.iter().map(|a| *a));
+    let by_time = group_by_time(checks.iter().copied());
     let mut time_sorted_values: Vec<&Vec<&Check>> = by_time.values().collect();
     time_sorted_values.sort();
 
@@ -496,7 +496,7 @@ mod tests {
         let base_checks = basic_check_set();
         let checks: Vec<&Check> = base_checks.iter().collect();
 
-        let tg = group_by_time(checks.iter().map(|a| *a));
+        let tg = group_by_time(checks.iter().copied());
         assert_eq!(tg.len(), 5);
         for (k, v) in tg {
             assert_eq!(v.len(), 4);

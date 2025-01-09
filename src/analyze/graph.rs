@@ -1,7 +1,7 @@
 use std::fmt::Write;
 use std::path::Path;
 
-use chrono::{DateTime, Local, TimeZone, Utc};
+use chrono::{DateTime, Local};
 use plotters::prelude::*;
 use tracing::trace;
 

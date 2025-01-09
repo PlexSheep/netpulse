@@ -23,11 +23,7 @@
 //! }
 //! ```
 
-use std::error::Error;
-
 use flagset::FlagSet;
-#[cfg(feature = "graph")]
-use plotters::prelude::DrawingAreaErrorKind;
 use thiserror::Error;
 
 use crate::records::CheckFlag;

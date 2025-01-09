@@ -1,9 +1,8 @@
-use blake3::Hash;
-use chrono::{DateTime, Datelike, Local, TimeDelta, TimeZone, Timelike};
+use chrono::{DateTime, Local, TimeDelta, Timelike};
 use flagset::FlagSet;
-use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro128Plus;
-use tracing::{debug, trace};
+use tracing::debug;
 
 use crate::{
     records::{Check, CheckFlag, TARGETS},
