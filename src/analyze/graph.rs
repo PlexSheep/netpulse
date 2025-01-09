@@ -1,9 +1,7 @@
-use std::fmt::Write;
 use std::path::Path;
 
 use chrono::{DateTime, Local, TimeZone};
 use plotters::prelude::*;
-use tracing::trace;
 
 use crate::errors::AnalysisError;
 use crate::records::Check;

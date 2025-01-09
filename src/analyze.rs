@@ -29,9 +29,8 @@
 //! - Outage analysis
 //! - Store metadata (hashes, versions)
 
-use chrono::{DateTime, Local, TimeDelta};
+use chrono::{DateTime, Local};
 use deepsize::DeepSizeOf;
-use plotters::prelude::IntoMonthly;
 use tracing::{error, trace};
 
 use crate::errors::AnalysisError;
@@ -40,7 +39,6 @@ use crate::store::Store;
 
 use std::collections::HashMap;
 use std::fmt::{Display, Write};
-use std::ops::RangeBounds;
 use std::os::unix::fs::MetadataExt;
 
 use self::outage::Outage;
