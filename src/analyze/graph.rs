@@ -19,7 +19,7 @@ pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), Analy
     let mut data: Vec<(DateTime<Local>, Severity)> = Vec::new();
     let time_grouped = group_by_time(checks.iter());
     assert!(!time_grouped.is_empty());
-    let mut times: Vec<_> = time_grouped.values().collect();
+    let times: Vec<_> = time_grouped.values().collect();
     let timespan =
         times.first().unwrap()[0].timestamp_parsed()..times.last().unwrap()[0].timestamp_parsed();
     let mut x_axis: Vec<_> = Vec::new();
@@ -42,7 +42,7 @@ pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), Analy
 
     let mut chart = ChartBuilder::on(&root)
         .margin(10)
-        .caption("Uptime interruption", ("sans-serif", 60))
+        .caption("Outage Severity over all time", ("sans-serif", 60))
         .set_label_area_size(LabelAreaPosition::Left, 60)
         .set_label_area_size(LabelAreaPosition::Bottom, 30)
         .build_cartesian_2d(timespan, 0.0..1.0)
@@ -52,11 +52,12 @@ pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), Analy
 
     chart
         .configure_mesh()
-        .disable_x_mesh()
+        // .disable_x_mesh()
         // .disable_y_mesh()
-        .x_labels(times.len())
+        .x_labels(20)
         .max_light_lines(4)
-        .y_desc("Average Temp (F)")
+        .y_desc("Severity")
+        .x_desc("Time")
         .draw()
         .map_err(|e| AnalysisError::GraphDraw {
             reason: e.to_string(),
@@ -75,15 +76,6 @@ pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), Analy
         .map_err(|e| AnalysisError::GraphDraw {
             reason: e.to_string(),
         })?;
-
-    // chart
-    //     .draw_series(
-    //         DATA.iter()
-    //             .map(|(y, m, t)| Circle::new((Local.ymd(*y, *m, 1), *t), 3, BLUE.filled())),
-    //     )
-    //     .map_err(|e| AnalysisError::GraphDraw {
-    //         reason: e.to_string(),
-    //     })?;
 
     // To avoid the IO failure being ignored silently, we manually call the present function
     root.present().map_err(|e| AnalysisError::GraphDraw {
