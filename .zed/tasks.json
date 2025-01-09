@@ -1,0 +1,17 @@
+// Static tasks configuration.
+//
+// Example:
+[
+    {
+        "label": "make graph",
+        "command": "cargo run --release -- --graph",
+        "env": {
+            "NETPULSE_LOG_LEVEL": "TRACE"
+        },
+        "use_new_terminal": false,
+        "allow_concurrent_runs": false,
+        "reveal": "no_focus",
+        "reveal_target": "dock",
+        "hide": "never"
+    }
+]

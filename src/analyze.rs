@@ -29,8 +29,9 @@
 //! - Outage analysis
 //! - Store metadata (hashes, versions)
 
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, TimeDelta};
 use deepsize::DeepSizeOf;
+use plotters::prelude::IntoMonthly;
 use tracing::{error, trace};
 
 use crate::errors::AnalysisError;
@@ -39,6 +40,7 @@ use crate::store::Store;
 
 use std::collections::HashMap;
 use std::fmt::{Display, Write};
+use std::ops::RangeBounds;
 use std::os::unix::fs::MetadataExt;
 
 use self::outage::Outage;
@@ -224,6 +226,27 @@ pub fn outages_detailed(all: &[&Check], f: &mut String, dump: bool) -> Result<()
     writeln!(f)?;
 
     Ok(())
+}
+
+pub fn checks_per_time_group<'check>(
+    checks: impl IntoIterator<Item = &'check Check>,
+) -> HashMap<i64, usize> {
+    let cbt = group_by_time(checks);
+    assert!(!cbt.is_empty());
+    let mut times: Vec<_> = cbt.values().collect();
+    times.sort();
+    let time_start = times.first().unwrap()[0].timestamp();
+    let time_end = times.last().unwrap()[0].timestamp();
+
+    let mut buf: HashMap<i64, usize> = HashMap::new();
+
+    let mut current = time_start;
+    while current < time_end {
+        buf.insert(current, cbt.get(&current).map(|a| a.len()).unwrap_or(0));
+        current += 60;
+    }
+
+    buf
 }
 
 pub fn group_by_time<'check>(

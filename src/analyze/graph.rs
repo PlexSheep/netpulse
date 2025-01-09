@@ -1,7 +1,7 @@
 use std::fmt::Write;
 use std::path::Path;
 
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, TimeZone};
 use plotters::prelude::*;
 use tracing::trace;
 
@@ -23,10 +23,6 @@ pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), Analy
     times.sort();
     let timespan =
         times.first().unwrap()[0].timestamp_parsed()..times.last().unwrap()[0].timestamp_parsed();
-    let mut x_axis: Vec<_> = Vec::new();
-    for t in 0..time_grouped.len() {
-        x_axis.push(t);
-    }
 
     for group in time_grouped.values() {
         data.push((
@@ -35,6 +31,13 @@ pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), Analy
         ));
     }
     data.sort_by_key(|a| a.0);
+
+    let cpt = super::checks_per_time_group(checks.iter());
+    let mut checks_per_time: Vec<(DateTime<Local>, usize)> = cpt
+        .iter()
+        .map(|(k, v)| (Local.timestamp_opt(*k, 0).unwrap(), *v))
+        .collect();
+    checks_per_time.sort_by_key(|a| a.0);
 
     let root = BitMapBackend::new(outfile, (1920, 1080)).into_drawing_area();
     root.fill(&WHITE).map_err(|e| AnalysisError::GraphDraw {
@@ -45,11 +48,16 @@ pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), Analy
         .margin(10)
         .caption("Outage Severity over all time", ("sans-serif", 60))
         .set_label_area_size(LabelAreaPosition::Left, 60)
-        .set_label_area_size(LabelAreaPosition::Bottom, 30)
-        .build_cartesian_2d(timespan, 0.0..1.0)
+        .set_label_area_size(LabelAreaPosition::Right, 60)
+        .set_label_area_size(LabelAreaPosition::Bottom, 60)
+        .build_cartesian_2d(timespan.clone(), 0.0..1.0)
         .map_err(|e| AnalysisError::GraphDraw {
             reason: e.to_string(),
-        })?;
+        })?
+        .set_secondary_coord(
+            timespan,
+            0f64..checks_per_time.last().map(|a| a.1 as f64).unwrap(),
+        );
 
     chart
         .configure_mesh()
@@ -61,17 +69,24 @@ pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), Analy
         .map_err(|e| AnalysisError::GraphDraw {
             reason: e.to_string(),
         })?;
-
-    let processed_data = data.iter().map(|(a, b)| (*a, f64::from(*b)));
-    trace!("dumping whole processed data: \n{}", {
-        let mut buf = String::new();
-        for (idx, row) in processed_data.clone().enumerate() {
-            writeln!(buf, "{:08},{},{:.06}", idx, row.0, row.1).unwrap();
-        }
-        buf
-    });
     chart
-        .draw_series(AreaSeries::new(processed_data, 0.0, RED.mix(0.2)).border_style(RED))
+        .configure_secondary_axes()
+        .y_desc("Amount of Checks")
+        .draw()
+        .map_err(|e| AnalysisError::GraphDraw {
+            reason: e.to_string(),
+        })?;
+
+    let processed_serevity_data = data.iter().map(|(a, b)| (*a, f64::from(*b)));
+    chart
+        .draw_series(AreaSeries::new(processed_serevity_data, 0.0, RED.mix(0.2)).border_style(RED))
+        .map_err(|e| AnalysisError::GraphDraw {
+            reason: e.to_string(),
+        })?;
+
+    let checks_per_time_f64 = checks_per_time.into_iter().map(|(t, v)| (t, v as f64));
+    chart
+        .draw_series(AreaSeries::new(checks_per_time_f64, 0.0, BLUE.mix(0.2)))
         .map_err(|e| AnalysisError::GraphDraw {
             reason: e.to_string(),
         })?;

@@ -81,6 +81,12 @@ pub enum Severity {
     None,
 }
 
+impl Severity {
+    pub fn raw(self) -> f64 {
+        f64::from(self)
+    }
+}
+
 impl From<&[&Check]> for Severity {
     fn from(value: &[&Check]) -> Self {
         let percentage: f64 =
