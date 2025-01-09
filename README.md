@@ -48,8 +48,20 @@ The simplest way to install Netpulse is through Cargo:
 ```bash
 cargo install netpulse
 ```
-
 This will install both the `netpulse` and `netpulsed` executables.
+
+#### Plotting support
+
+For plotting the statistic into a neat diagram, this project makes use of the [plotters](https://crates.io/crates/plotters) crate.
+This crate requires `libfontconfig` to be installed for Linux systems.
+
+On Ubuntu/Debian, this can be installed with the following command:
+
+```bash
+apt-get install libfontconfig libfontconfig1-dev
+```
+
+Alternatively, you can compile netpulse without support for plotting by disableing the `graph` feature with cargo.
 
 ### System Setup
 
@@ -137,6 +149,11 @@ netpulse --graph
 It will look something like this:
 
 ![diagram showing the outage serivity of a server over multiple months](./examples/media/netpulse_diagram.png)
+
+**Explanation**:
+
+- Y-Axis shows how bad the outage was. A serivity of `1.0` means that connectivity is 100% lost (100% of the checks have failed).
+- X-Axis simply shows time (smallest unit is a minute)
 
 The general processed output of `netpulse` currently looks somewhat like this:
 
