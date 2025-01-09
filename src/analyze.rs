@@ -43,6 +43,7 @@ use std::os::unix::fs::MetadataExt;
 
 use self::outage::Outage;
 
+#[cfg(feature = "graph")]
 pub mod graph;
 pub mod outage;
 pub mod testset;
