@@ -148,7 +148,7 @@ netpulse --graph
 
 It will look something like this:
 
-![diagram showing the outage serivity of a server over multiple months](./examples/media/netpulse_diagram.png)
+![diagram showing the outage serivity of a server over multiple months](./examples/media/severity_over_time_default_dataset.png)
 
 **Explanation**:
 
