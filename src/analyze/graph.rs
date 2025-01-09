@@ -19,7 +19,8 @@ pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), Analy
     let mut data: Vec<(DateTime<Local>, Severity)> = Vec::new();
     let time_grouped = group_by_time(checks.iter());
     assert!(!time_grouped.is_empty());
-    let times: Vec<_> = time_grouped.values().collect();
+    let mut times: Vec<_> = time_grouped.values().collect();
+    times.sort();
     let timespan =
         times.first().unwrap()[0].timestamp_parsed()..times.last().unwrap()[0].timestamp_parsed();
     let mut x_axis: Vec<_> = Vec::new();
@@ -50,12 +51,9 @@ pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), Analy
             reason: e.to_string(),
         })?;
 
-    // FIXME: sometimes deeper div by 0 error
     chart
         .configure_mesh()
-        // .disable_x_mesh()
-        // .disable_y_mesh()
-        .x_labels(20)
+        .x_labels(10)
         .max_light_lines(4)
         .y_desc("Severity")
         .x_desc("Time")
