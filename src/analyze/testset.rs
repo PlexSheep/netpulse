@@ -12,7 +12,7 @@ use crate::{
 pub const N: usize = 30_000;
 pub const DEFAULT_SEED: u64 = 1686429357;
 pub const BLAKE3_HASH_OF_DEFAULT_DATASET: &str =
-    "2d6c3542a60645c48c3a0023026a370a18c4d5d3b529a738be7b0a5e10ee5e9f";
+    "0148de0e8d4838664252dd59311ea3a29219ff6b975143bb102b20f3c70ae969";
 
 pub fn base_time() -> DateTime<Local> {
     let utc = DateTime::from_timestamp(1686429357, 0)

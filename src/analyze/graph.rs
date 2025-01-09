@@ -90,7 +90,10 @@ mod tests {
     #[test]
     fn test_draw_default_dataset() {
         let virtual_store = default_dataset();
-        draw_checks(virtual_store.checks(), "/tmp/test_draw_default_dataset.png")
-            .expect("could not draw default dataset");
+        draw_checks(
+            virtual_store.checks(),
+            "./examples/media/severity_over_time_default_dataset.png",
+        )
+        .expect("could not draw default dataset");
     }
 }
