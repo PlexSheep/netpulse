@@ -128,7 +128,17 @@ and analyze the store.
 
 #### Example Output
 
-The processed output of `netpulse` currently looks somewhat like this:
+Netpulse is still in an early phase, but you can get a graph showing your networking like this:
+
+```bash
+netpulse --graph
+```
+
+It will look something like this:
+
+![diagram showing the outage serivity of a server over multiple months](./examples/media/netpulse_diagram.png)
+
+The general processed output of `netpulse` currently looks somewhat like this:
 
 ```txt
 ========== General =======================================
