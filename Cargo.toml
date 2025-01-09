@@ -38,6 +38,8 @@ blake3 = "1.5.4"
 serde_repr = "0.1.19"
 sysinfo = "0.33.1"
 plotters = { version = "0.3.7", optional = true }
+rand = { version = "0.8.5", features = ["small_rng"] }
+rand_xoshiro = "0.6.0"
 
 [[bin]] # client
 name = "netpulse"

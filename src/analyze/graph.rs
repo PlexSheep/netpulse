@@ -50,6 +50,7 @@ pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), Analy
             reason: e.to_string(),
         })?;
 
+    // FIXME: sometimes deeper div by 0 error
     chart
         .configure_mesh()
         // .disable_x_mesh()

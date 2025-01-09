@@ -224,6 +224,13 @@ impl Store {
         }
     }
 
+    pub fn from_raw_in_mem(checks: impl Into<Vec<Check>>) -> Self {
+        let mut this = Self::new();
+        this.set_readonly();
+        this.checks = checks.into();
+        this
+    }
+
     /// Sets up the store directory with proper permissions.
     ///
     /// This function must be called with root privileges before starting the daemon. It:

@@ -25,7 +25,7 @@
 //! store.save().unwrap();
 //! ```
 
-#![warn(missing_docs)]
+// TODO: reenable this #![warn(missing_docs)]
 
 /// How long to wait until considering a connection as timed out, in milliseconds
 pub const TIMEOUT_MS: u16 = 10_000;

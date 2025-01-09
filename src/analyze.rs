@@ -45,6 +45,7 @@ use self::outage::Outage;
 
 pub mod graph;
 pub mod outage;
+pub mod testset;
 
 /// Formatting rules for timestamps that are easily readable by humans.
 ///
@@ -224,7 +225,7 @@ pub fn outages_detailed(all: &[&Check], f: &mut String, dump: bool) -> Result<()
     Ok(())
 }
 
-fn group_by_time<'check>(
+pub fn group_by_time<'check>(
     checks: impl IntoIterator<Item = &'check Check>,
 ) -> HashMap<i64, CheckGroup<'check>> {
     let mut groups: HashMap<i64, CheckGroup<'check>> = HashMap::new();
