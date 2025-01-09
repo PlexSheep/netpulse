@@ -30,8 +30,8 @@ jobs:
           rustup component add clippy
       - name: install additional system dependencies
         run: |
-            apt-get update
-            apt-get install libfontconfig libfontconfig1-dev
+            sudo apt-get update -y
+            sudo apt-get install -y libfontconfig libfontconfig1-dev
       - name: config custom registry
         run: |
           mkdir -p ~/.cargo/
