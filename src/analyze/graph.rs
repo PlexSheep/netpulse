@@ -82,3 +82,15 @@ pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), Analy
     })?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::analyze::{graph::draw_checks, testset::default_dataset};
+
+    #[test]
+    fn test_draw_default_dataset() {
+        let virtual_store = default_dataset();
+        draw_checks(virtual_store.checks(), "/tmp/test_draw_default_dataset.png")
+            .expect("could not draw default dataset");
+    }
+}

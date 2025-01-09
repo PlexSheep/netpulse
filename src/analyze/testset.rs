@@ -13,7 +13,7 @@ use crate::{
 pub const N: usize = 30_000;
 pub const DEFAULT_SEED: u64 = 1686429357;
 pub const BLAKE3_HASH_OF_DEFAULT_DATASET: &str =
-    "01d95857943ce1b6c363d278b0303215d14290ccb5ea8c1b885f93a63cf19ce5";
+    "2d6c3542a60645c48c3a0023026a370a18c4d5d3b529a738be7b0a5e10ee5e9f";
 
 pub fn base_time() -> DateTime<Local> {
     let utc = DateTime::from_timestamp(1686429357, 0)
@@ -100,4 +100,16 @@ pub fn generate_dataset(seed: u64) -> Store {
 
 fn success(r: u32, idx: usize) -> bool {
     !(2020usize..2280).contains(&idx) && !(15020usize..15080).contains(&idx) && r % 4000 != 1
+}
+
+#[cfg(test)]
+mod tests {
+    use super::default_dataset;
+
+    #[test]
+    #[should_panic]
+    fn test_cant_save_default_dataset() {
+        let virtual_store = default_dataset();
+        virtual_store.save().expect("could not save")
+    }
 }
