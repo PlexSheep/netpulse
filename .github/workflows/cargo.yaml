@@ -28,6 +28,10 @@ jobs:
         run: |
           rustup component add rustfmt
           rustup component add clippy
+      - name: install additional system dependencies
+        run: |
+            apt-get update
+            apt-get install libfontconfig libfontconfig1-dev
       - name: config custom registry
         run: |
           mkdir -p ~/.cargo/
