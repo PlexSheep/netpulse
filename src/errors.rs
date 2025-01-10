@@ -195,4 +195,6 @@ pub enum AnalysisError {
     GraphDraw {
         reason: String, // plotters error type use generics, and that's just a pain
     },
+    #[error("analysis was requested, but an empty list of checks was given")]
+    NoChecksToAnalyze,
 }

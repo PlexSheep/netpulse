@@ -11,7 +11,7 @@ use super::outage::Severity;
 
 pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), AnalysisError> {
     if checks.is_empty() {
-        panic!("need at least one check to draw the diagram");
+        return Err(AnalysisError::NoChecksToAnalyze);
     }
     let outfile: &Path = file.as_ref();
     let mut data: Vec<(DateTime<Local>, Severity)> = Vec::new();
