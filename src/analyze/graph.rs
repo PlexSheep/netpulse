@@ -1,12 +1,9 @@
 use std::path::Path;
 
 use charming::{
-    component::{Axis, Grid, Legend},
-    element::{
-        AxisPointer, AxisPointerType, AxisType, Emphasis, EmphasisFocus, LineStyle, LineStyleType,
-        MarkLine, MarkLineData, MarkLineVariant, Tooltip, Trigger,
-    },
-    series::{bar, Bar, Line, Series},
+    component::{Axis, Legend},
+    element::AxisType,
+    series::Line,
     Chart, HtmlRenderer,
 };
 use chrono::{DateTime, Local, TimeZone};
