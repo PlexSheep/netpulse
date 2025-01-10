@@ -104,8 +104,8 @@ fn graph() -> Result<(), RunError> {
 
     let store = Store::load(true)?;
     let mut path = std::env::current_dir()?;
-    path.push("netpulse_diagram.png");
-    if let Err(e) = analyze::graph::draw_checks(store.checks(), &path) {
+    path.push("netpulse_diagram.html");
+    if let Err(e) = analyze::graph::draw_outages_over_all_time(store.checks(), &path) {
         eprintln!("Error while making the analysis graph: {e}");
         std::process::exit(1);
     }

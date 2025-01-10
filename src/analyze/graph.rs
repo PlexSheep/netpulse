@@ -1,8 +1,15 @@
 use std::path::Path;
 
+use charming::{
+    component::{Axis, Grid, Legend},
+    element::{
+        AxisPointer, AxisPointerType, AxisType, Emphasis, EmphasisFocus, LineStyle, LineStyleType,
+        MarkLine, MarkLineData, MarkLineVariant, Tooltip, Trigger,
+    },
+    series::{bar, Bar, Line, Series},
+    Chart, HtmlRenderer,
+};
 use chrono::{DateTime, Local, TimeZone};
-use plotters::element::Drawable;
-use plotters::prelude::*;
 
 use crate::errors::AnalysisError;
 use crate::records::Check;
@@ -10,26 +17,29 @@ use crate::records::Check;
 use super::group_by_time;
 use super::outage::Severity;
 
-pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), AnalysisError> {
+pub fn draw_outages_over_all_time(
+    checks: &[Check],
+    file: impl AsRef<Path>,
+) -> Result<(), AnalysisError> {
     if checks.is_empty() {
         return Err(AnalysisError::NoChecksToAnalyze);
     }
     let outfile: &Path = file.as_ref();
-    let mut data: Vec<(DateTime<Local>, Severity)> = Vec::new();
     let time_grouped = group_by_time(checks.iter());
-    assert!(!time_grouped.is_empty());
     let mut times: Vec<_> = time_grouped.values().collect();
+    let mut severity_data: Vec<(DateTime<Local>, Severity)> = Vec::new();
+
     times.sort();
     let timespan =
         times.first().unwrap()[0].timestamp_parsed()..times.last().unwrap()[0].timestamp_parsed();
 
     for group in time_grouped.values() {
-        data.push((
+        severity_data.push((
             group[0].timestamp_parsed(),
             Severity::from(group.as_slice()),
         ));
     }
-    data.sort_by_key(|a| a.0);
+    severity_data.sort_by_key(|a| a.0);
 
     let cpt = super::checks_per_time_group(checks.iter());
     let mut checks_per_time: Vec<(DateTime<Local>, usize)> = cpt
@@ -38,74 +48,48 @@ pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), Analy
         .collect();
     checks_per_time.sort_by_key(|a| a.0);
 
-    let root = BitMapBackend::new(outfile, (1920, 1080)).into_drawing_area();
-    root.fill(&WHITE).map_err(|e| AnalysisError::GraphDraw {
-        reason: e.to_string(),
-    })?;
+    let chart = chart_a(&checks_per_time, &severity_data);
+    let mut renderer = HtmlRenderer::new("test", 1600, 900);
+    renderer.save(&chart, outfile)?;
 
-    let mut chart = ChartBuilder::on(&root)
-        .margin(10)
-        .caption("Outage Severity over all time", ("sans-serif", 60))
-        .set_label_area_size(LabelAreaPosition::Left, 60)
-        .set_label_area_size(LabelAreaPosition::Right, 60)
-        .set_label_area_size(LabelAreaPosition::Bottom, 60)
-        .build_cartesian_2d(timespan.clone(), 0.0..1.0)
-        .map_err(|e| AnalysisError::GraphDraw {
-            reason: e.to_string(),
-        })?
-        .set_secondary_coord(
-            timespan,
-            0f64..checks_per_time.last().map(|a| a.1 as f64).unwrap(),
-        );
-
-    chart
-        .configure_mesh()
-        .x_labels(10)
-        .max_light_lines(4)
-        .y_desc("Severity (Red)")
-        .x_desc("Time")
-        .draw()
-        .map_err(|e| AnalysisError::GraphDraw {
-            reason: e.to_string(),
-        })?;
-    chart
-        .configure_secondary_axes()
-        .y_desc("Amount of Checks (Blue)")
-        .draw()
-        .map_err(|e| AnalysisError::GraphDraw {
-            reason: e.to_string(),
-        })?;
-
-    let processed_serevity_data = data.iter().map(|(a, b)| (*a, f64::from(*b)));
-    chart
-        .draw_series(AreaSeries::new(processed_serevity_data, 0.0, RED.mix(0.2)).border_style(RED))
-        .map_err(|e| AnalysisError::GraphDraw {
-            reason: e.to_string(),
-        })?;
-
-    let checks_per_time_f64 = checks_per_time.into_iter().map(|(t, v)| (t, v as f64));
-    chart
-        .draw_series(AreaSeries::new(checks_per_time_f64, 0.0, BLUE.mix(0.2)))
-        .map_err(|e| AnalysisError::GraphDraw {
-            reason: e.to_string(),
-        })?;
-    // To avoid the IO failure being ignored silently, we manually call the present function
-    root.present().map_err(|e| AnalysisError::GraphDraw {
-        reason: e.to_string(),
-    })?;
     Ok(())
+}
+
+pub fn chart_a(
+    checks_per_time: &Vec<(DateTime<Local>, usize)>,
+    severity_data: &Vec<(DateTime<Local>, Severity)>,
+) -> Chart {
+    let times: Vec<DateTime<Local>> = checks_per_time.iter().map(|a| a.0).collect();
+    let mut severities: Vec<Vec<String>> = Vec::new();
+    let severity_times: Vec<DateTime<Local>> = severity_data.iter().map(|a| a.0).collect();
+
+    let mut severities_idx = 0;
+    for time in times.iter() {
+        if severity_times.contains(time) {
+            let point = severity_data[severities_idx];
+            severities.push(vec![point.0.to_rfc3339(), point.1.raw().to_string()]);
+            severities_idx += 1;
+        } else {
+            severities.push(vec![time.to_rfc3339(), 0.0.to_string()]);
+        }
+    }
+    Chart::new()
+        .legend(Legend::new())
+        .y_axis(Axis::new().type_(AxisType::Value))
+        .x_axis(Axis::new().type_(AxisType::Time))
+        .series(Line::new().data(severities))
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::analyze::{graph::draw_checks, testset::default_dataset};
+    use crate::analyze::{graph::draw_outages_over_all_time, testset::default_dataset};
 
     #[test]
     fn test_draw_default_dataset() {
         let virtual_store = default_dataset();
-        draw_checks(
+        draw_outages_over_all_time(
             virtual_store.checks(),
-            "./examples/media/severity_over_time_default_dataset.png",
+            "./examples/media/severity_over_time_default_dataset.html",
         )
         .expect("could not draw default dataset");
     }

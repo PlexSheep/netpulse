@@ -193,7 +193,8 @@ pub enum AnalysisError {
     #[cfg(feature = "graph")]
     #[cfg_attr(feature = "graph", error("error while drawing the graph"))]
     GraphDraw {
-        reason: String, // plotters error type use generics, and that's just a pain
+        #[from]
+        source: charming::EchartsError,
     },
     #[error("analysis was requested, but an empty list of checks was given")]
     NoChecksToAnalyze,
