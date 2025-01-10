@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use chrono::{DateTime, Local, TimeZone};
+use plotters::element::Drawable;
 use plotters::prelude::*;
 
 use crate::errors::AnalysisError;
@@ -61,7 +62,7 @@ pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), Analy
         .configure_mesh()
         .x_labels(10)
         .max_light_lines(4)
-        .y_desc("Severity")
+        .y_desc("Severity (Red)")
         .x_desc("Time")
         .draw()
         .map_err(|e| AnalysisError::GraphDraw {
@@ -69,7 +70,7 @@ pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), Analy
         })?;
     chart
         .configure_secondary_axes()
-        .y_desc("Amount of Checks")
+        .y_desc("Amount of Checks (Blue)")
         .draw()
         .map_err(|e| AnalysisError::GraphDraw {
             reason: e.to_string(),
@@ -88,7 +89,6 @@ pub fn draw_checks(checks: &[Check], file: impl AsRef<Path>) -> Result<(), Analy
         .map_err(|e| AnalysisError::GraphDraw {
             reason: e.to_string(),
         })?;
-
     // To avoid the IO failure being ignored silently, we manually call the present function
     root.present().map_err(|e| AnalysisError::GraphDraw {
         reason: e.to_string(),
