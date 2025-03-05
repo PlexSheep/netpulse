@@ -6,7 +6,7 @@ edition = "2021"
 publish = true
 authors = ["Christoph J. Scherr <software@cscherr.de>"]
 license = "MIT"
-description = "Keep track of if your internet is still alive, collect stats against a crappy ISP"
+description = "reader and daemon to monitor connectivity to the internet"
 readme = "README.md"
 homepage = "https://github.com/PlexSheep/netpulse"
 repository = "https://github.com/PlexSheep/netpulse"
@@ -56,3 +56,19 @@ debug = true
 
 [dev-dependencies]
 tracing-test = "0.2.5"
+
+[package.metadata.deb]
+maintainer = "Christoph J. Scherr <software@cscherr.de>"
+copyright = "2025, Christoph J. Scherr <software@cscherr.de>"
+license-file = ["LICENSE", "4"]
+extended-description = """\
+Keep track of if your internet is still alive, collect stats against a crappy ISP
+"""
+depends = "$auto"
+section = "utility"
+priority = "optional"
+assets = [
+    ["target/release/netpulse", "usr/bin/", "755"],
+    ["target/release/netpulsed", "usr/bin/", "755"],
+    ["/var/lib/netpulse/netpulse.store", "var/lib/netpulse", "644"],
+]
