@@ -22,7 +22,7 @@ Netpulse helps keep track of when your internet connectivity goes down.
 - Primary support: GNU/Linux x86_64
 - Other architectures: May work but untested
 - Windows: Not supported
-- macOS: Unknown/untested
+- MacOS: Unknown/untested
 
 I have it running on my homeserver and laptop with Debian based modern Operating
 Systems.
@@ -61,10 +61,10 @@ sudo $(which netpulsed) --setup
 
 This will:
 
-- Create the netpulse user and group
+- Create the `netpulse` user and group
 - Copy the `netpulsed` executable to `/usr/local/bin/`
 - Create necessary directories and set permissions
-- Install a systemd unit file
+- Install a SystemD unit file
 - Configure logging
 
 Note: `cargo` usually installs the binary for your local user, not for the whole
@@ -88,11 +88,11 @@ seconds.
 
 ### The Daemon
 
-The `netpulsed` daemon can be run either through systemd (recommended) or as a standalone process.
+The `netpulsed` daemon can be run either through SystemD (recommended) or as a standalone process.
 
-#### Using Systemd (Recommended)
+#### Using SystemD (Recommended)
 
-After running the setup (`sudo $(which netpulsed) --setup`), you can manage the daemon using standard systemd commands:
+After running the setup (`sudo $(which netpulsed) --setup`), you can manage the daemon using standard SystemD commands:
 
 ```bash
 sudo systemctl start netpulsed.service   # Start the daemon
@@ -230,5 +230,5 @@ grown to 1.1 MB. ZSTD compression and encoding does a lot here.
 
 The target IPs with which checks are made are defined in the constant `TARGETS` [here](./src/records.rs).
 
-Currently, it boils down to `1.1.1.1` (cloudflare's DNS server), and the
-respective IPv6 adress of that.
+Currently, it boils down to `1.1.1.1` (Cloudflare's DNS server), and the
+respective IPv6 address of that.
