@@ -274,7 +274,7 @@ impl Store {
             .parent()
             .expect("the store path has no parent directory");
         let user = nix::unistd::User::from_name(DAEMON_USER)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+            .map_err(std::io::Error::other)
             .expect("could not get user for netpulse")
             .ok_or_else(|| {
                 std::io::Error::new(std::io::ErrorKind::NotFound, "netpulse user not found")
@@ -599,7 +599,7 @@ impl Store {
             .checks
             .iter()
             .enumerate()
-            .last()
+            .next_back()
             .map(|a| a.0)
             .unwrap_or(0);
 
