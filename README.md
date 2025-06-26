@@ -6,7 +6,7 @@
 ![GitHub language count](https://img.shields.io/github/languages/count/PlexSheep/netpulse)
 [![Rust CI](https://github.com/PlexSheep/netpulse/actions/workflows/cargo.yaml/badge.svg)](https://github.com/PlexSheep/hedu/actions/workflows/cargo.yaml)
 
-Keep track of your internet connection with a daemon. Licensed under MIT.
+Keep track of your internet connection with a daemon. Free Software licensed as GPL-3.
 
 - [GitHub](https://github.com/PlexSheep/netpulse)
 - [crates.io](https://crates.io/crates/netpulse)
