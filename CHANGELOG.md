@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.9.1](https://github.com/PlexSheep/netpulse/compare/v0.9.0...v0.9.1)
+
+### 🐛 Bug Fixes
+
+- Time grouping grouped everything in 1min groups #69 - ([edff516](https://github.com/PlexSheep/netpulse/commit/edff5161a9d92e3500df20cd83cc157546bdd4ed))
+- Test was badly changed - ([913d50e](https://github.com/PlexSheep/netpulse/commit/913d50e638226b8aef67306b8af5eb93543d60e9))
+
+
 ## [0.9.0](https://github.com/PlexSheep/netpulse/compare/v0.8.0...v0.9.0)
 
 ### ⛰️ Features
