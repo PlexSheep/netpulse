@@ -27,7 +27,7 @@ use std::sync::{Arc, Mutex};
 
 use deepsize::DeepSizeOf;
 use serde::{Deserialize, Serialize};
-use tracing::{error, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 use crate::errors::StoreError;
 use crate::records::{Check, CheckType, TARGETS};
@@ -207,6 +207,7 @@ impl Store {
         if let Some(var) = std::env::var_os(ENV_PATH) {
             let mut p = PathBuf::from(var);
             p.push(DB_NAME);
+            debug!("Store Path: {}", p.display());
             p
         } else {
             PathBuf::from(format!("{DB_PATH}/{DB_NAME}"))
@@ -397,6 +398,7 @@ impl Store {
     /// - Read/parse fails
     /// - Version unsupported
     pub fn load(readonly: bool) -> Result<Self, StoreError> {
+        debug!("Trying to open the store");
         let file = match fs::File::options()
             .read(true)
             .write(false)
@@ -414,6 +416,7 @@ impl Store {
                 return Err(err.into());
             }
         };
+        debug!("Store file opened");
 
         #[cfg(feature = "compression")]
         let reader = zstd::Decoder::new(file)?;
