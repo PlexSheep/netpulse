@@ -57,8 +57,41 @@ pub const TIME_FORMAT_HUMANS: &str = "%Y-%m-%d %H:%M:%S %Z";
 /// A group of [Checks](Check)
 pub type CheckGroup<'check> = Vec<&'check Check>;
 
-fn more_indent(buf: &str) -> String {
-    format!("\t{}", buf.to_string().replace("\n", "\n\t"))
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord, Default)]
+pub enum IpAddrConstraint {
+    #[default]
+    Any,
+    V4,
+    V6,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord, Default)]
+pub struct CheckAccessConstraints {
+    pub failed_only: bool,
+    pub ip: IpAddrConstraint,
+    pub since_date: Option<DateTime<Local>>,
+    pub only_complete: bool,
+}
+
+impl IpAddrConstraint {
+    pub fn ip_matches(&self, ip: &std::net::IpAddr) -> bool {
+        if matches!(self, Self::Any) {
+            return true;
+        }
+        match ip {
+            std::net::IpAddr::V4(_) => matches!(self, Self::V4),
+            std::net::IpAddr::V6(_) => matches!(self, Self::V6),
+        }
+    }
+    pub fn ip_type_matches(&self, ip: &IpType) -> bool {
+        if matches!(self, Self::Any) {
+            return true;
+        }
+        match ip {
+            IpType::V4 => matches!(self, Self::V4),
+            IpType::V6 => matches!(self, Self::V6),
+        }
+    }
 }
 
 /// Generate a comprehensive analysis report for the given store.
@@ -84,24 +117,46 @@ fn more_indent(buf: &str) -> String {
 /// let report = analyze::analyze(&store).unwrap();
 /// println!("{}", report);
 /// ```
-pub fn analyze(store: &Store) -> Result<String, AnalysisError> {
+pub fn analyze(store: &Store, checks: &[&Check]) -> Result<String, AnalysisError> {
     let mut f = String::new();
     barrier(&mut f, "General")?;
-    generalized(store, &mut f)?;
+    generalized(checks, &mut f)?;
     barrier(&mut f, "HTTP")?;
-    generic_type_analyze(store, &mut f, CheckType::Http)?;
+    generic_type_analyze(checks, &mut f, CheckType::Http)?;
     barrier(&mut f, "ICMP")?;
-    generic_type_analyze(store, &mut f, CheckType::Icmp)?;
+    generic_type_analyze(checks, &mut f, CheckType::Icmp)?;
     barrier(&mut f, "IPv4")?;
-    gereric_ip_analyze(store, &mut f, IpType::V4)?;
+    gereric_ip_analyze(checks, &mut f, IpType::V4)?;
     barrier(&mut f, "IPv6")?;
-    gereric_ip_analyze(store, &mut f, IpType::V6)?;
+    gereric_ip_analyze(checks, &mut f, IpType::V6)?;
     barrier(&mut f, "Outages")?;
-    outages(store, &mut f)?;
+    outages(checks, &mut f)?;
     barrier(&mut f, "Store Metadata")?;
     store_meta(store, &mut f)?;
 
     Ok(f)
+}
+
+pub fn get_checks(
+    store: &Store,
+    constraints: CheckAccessConstraints,
+) -> Result<Vec<&Check>, AnalysisError> {
+    let checks = store.checks().iter().filter(|c| {
+        (if constraints.failed_only {
+            !c.is_success()
+        } else {
+            true
+        }) && constraints.ip.ip_type_matches(&c.ip_type())
+            && ({
+                if let Some(since_date) = constraints.since_date {
+                    c.timestamp_parsed() >= since_date
+                } else {
+                    true
+                }
+            })
+    });
+
+    Ok(checks.collect())
 }
 
 /// Formats a [SystemTime](std::time::SystemTime) as an easily readable timestamp for humans.
@@ -153,8 +208,7 @@ fn key_value_write(
 ///
 /// Groups consecutive failed checks by check type and creates
 /// Outage records for reporting.
-fn outages(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
-    let all: Vec<&Check> = store.checks().iter().collect();
+fn outages(all: &[&Check], f: &mut String) -> Result<(), AnalysisError> {
     let fails_exist = !all.iter().all(|c| c.is_success());
     if !fails_exist || all.is_empty() {
         writeln!(f, "None\n")?;
@@ -320,13 +374,17 @@ fn analyze_check_type_set(
 /// Write general check statistics section of the report.
 ///
 /// Includes metrics across all check types combined.
-fn generalized(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
-    if store.checks().is_empty() {
-        writeln!(f, "Store has no checks yet\n")?;
+fn generalized(checks: &[&Check], f: &mut String) -> Result<(), AnalysisError> {
+    if checks.is_empty() {
+        writeln!(f, "no checks to analyze\n")?;
         return Ok(());
     }
-    let all: Vec<&Check> = store.checks().iter().collect();
-    let successes: Vec<&Check> = store.checks().iter().filter(|c| c.is_success()).collect();
+    let all: Vec<&Check> = checks.iter().map(|c| *c).collect();
+    let successes: Vec<&Check> = checks
+        .iter()
+        .map(|c| *c)
+        .filter(|c| c.is_success())
+        .collect();
     analyze_check_type_set(f, &all, &successes)?;
     Ok(())
 }
@@ -354,10 +412,14 @@ fn generalized(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
 /// Prints warning to stderr if:
 /// - Check has both IPv4 and IPv6 flags set
 /// - Check has no IP version flags set
-fn gereric_ip_analyze(store: &Store, f: &mut String, ip_type: IpType) -> Result<(), AnalysisError> {
-    let all: Vec<&Check> = store
-        .checks()
+fn gereric_ip_analyze(
+    checks: &[&Check],
+    f: &mut String,
+    ip_type: IpType,
+) -> Result<(), AnalysisError> {
+    let all: Vec<&Check> = checks
         .iter()
+        .map(|c| *c)
         .filter(|c| c.ip_type() == ip_type)
         .collect();
     let successes: Vec<&Check> = all.clone().into_iter().filter(|c| c.is_success()).collect();
@@ -366,13 +428,13 @@ fn gereric_ip_analyze(store: &Store, f: &mut String, ip_type: IpType) -> Result<
 }
 /// Includes metrics across all check types combined.
 fn generic_type_analyze(
-    store: &Store,
+    checks: &[&Check],
     f: &mut String,
     check_type: CheckType,
 ) -> Result<(), AnalysisError> {
-    let all: Vec<&Check> = store
-        .checks()
+    let all: Vec<&Check> = checks
         .iter()
+        .map(|c| *c)
         .filter(|c| c.calc_type().unwrap_or(CheckType::Unknown) == check_type)
         .collect();
     let successes: Vec<&Check> = all.clone().into_iter().filter(|c| c.is_success()).collect();
@@ -412,6 +474,11 @@ fn store_meta(store: &Store, f: &mut String) -> Result<(), AnalysisError> {
 #[inline]
 fn success_ratio(all_checks: usize, subset: usize) -> f64 {
     subset as f64 / all_checks as f64
+}
+
+#[inline]
+fn more_indent(buf: &str) -> String {
+    format!("\t{}", buf.to_string().replace("\n", "\n\t"))
 }
 
 #[cfg(test)]

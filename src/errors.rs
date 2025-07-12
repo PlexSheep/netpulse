@@ -147,6 +147,13 @@ pub enum RunError {
         #[from]
         source: StoreError,
     },
+    /// An error occurred while analyzing
+    #[error("Something went wrong while analyzing: {source}")]
+    AnalysisError {
+        /// Underlying error
+        #[from]
+        source: AnalysisError,
+    },
     /// An I/O error occurred during daemon operations.
     #[error("IO Error: {source}")]
     Io {

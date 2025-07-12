@@ -11,8 +11,14 @@
 //!
 //! Use the `--help` flag for more information about the usage.
 
-use getopts::Options;
-use netpulse::analyze::{self, outages_detailed};
+use std::error::Error;
+use std::str::FromStr;
+
+use getopts::{Matches, Options};
+use netpulse::analyze::{
+    self, get_checks, outages_detailed, CheckAccessConstraints, IpAddrConstraint,
+};
+use netpulse::checks;
 use netpulse::common::{init_logging, print_usage, setup_panic_handler};
 use netpulse::errors::RunError;
 use netpulse::records::{display_group, Check};
@@ -21,11 +27,14 @@ use tracing::error;
 
 fn main() {
     setup_panic_handler();
+    #[cfg(not(debug_assertions))]
     init_logging(tracing::Level::INFO);
+    #[cfg(debug_assertions)]
+    init_logging(tracing::Level::TRACE);
     let args: Vec<String> = std::env::args().collect();
     let program = &args[0];
     let mut opts = Options::new();
-    let mut failed_only = false;
+    let mut constraints = CheckAccessConstraints::default();
     opts.optflag("h", "help", "print this help menu");
     opts.optflag("V", "version", "print the version");
     opts.optflag("t", "test", "test run all checks");
@@ -35,6 +44,14 @@ fn main() {
         "print out all outages, use --dump to show all contained",
     );
     opts.optflag("d", "dump", "print out all checks");
+    opts.optflag("4", "ipv4", "only consider ipv4");
+    opts.optflag("6", "ipv6", "only consider ipv6");
+    opts.optopt(
+        "s",
+        "since",
+        "only consider checks after DATETIME",
+        "DATETIME",
+    );
     opts.optflag(
         "r",
         "rewrite",
@@ -52,36 +69,53 @@ fn main() {
     if matches.opt_present("help") {
         print_usage(program, opts);
     }
-    if matches.opt_present("failed") {
-        failed_only = true;
-    }
     if matches.opt_present("version") {
         print_version()
     }
-    if matches.opt_present("outages") {
-        if let Err(e) = print_outages(None, matches.opt_present("dump")) {
-            error!("{e}");
-            std::process::exit(1)
-        }
-    } else if matches.opt_present("dump") {
-        if let Err(e) = dump(failed_only) {
-            error!("{e}");
-            std::process::exit(1)
-        }
-    } else if matches.opt_present("test") {
-        if let Err(e) = test_checks() {
-            error!("{e}");
-            std::process::exit(1)
-        }
-    } else if matches.opt_present("rewrite") {
-        if let Err(e) = rewrite() {
-            error!("{e}");
-            std::process::exit(1)
-        }
-    } else if let Err(e) = analysis() {
-        error!("{e}");
-        std::process::exit(1)
+    if matches.opt_present("failed") {
+        constraints.failed_only = true;
     }
+    if matches.opt_present("ipv4") {
+        constraints.ip = IpAddrConstraint::V4;
+    } else if matches.opt_present("ipv6") {
+        constraints.ip = IpAddrConstraint::V6;
+    }
+    match matches.opt_get("since") {
+        Ok(since) => constraints.since_date = since,
+        Err(e) => err_handler(e),
+    }
+
+    if let Err(e) = analyze(constraints, matches) {
+        err_handler(e)
+    }
+}
+
+fn err_handler(e: impl Error) -> ! {
+    error!("{e}");
+    std::process::exit(1)
+}
+
+fn analyze(constraints: CheckAccessConstraints, matches: Matches) -> Result<(), RunError> {
+    let store = Store::load(true)?;
+
+    macro_rules! checks {
+        () => {
+            &get_checks(&store, constraints).map_err(|e| RunError::from(e))?
+        };
+    }
+
+    if matches.opt_present("outages") {
+        print_outages(checks!(), None, matches.opt_present("dump"))?;
+    } else if matches.opt_present("dump") {
+        dump(checks!())?;
+    } else if matches.opt_present("test") {
+        test_checks()?;
+    } else if matches.opt_present("rewrite") {
+        rewrite()?;
+    } else {
+        analysis(&store, checks!())?;
+    }
+    Ok(())
 }
 
 fn test_checks() -> Result<(), RunError> {
@@ -94,15 +128,9 @@ fn test_checks() -> Result<(), RunError> {
     Ok(())
 }
 
-fn print_outages(latest: Option<usize>, dump: bool) -> Result<(), RunError> {
-    let store = Store::load(true)?;
+fn print_outages(checks: &[&Check], latest: Option<usize>, dump: bool) -> Result<(), RunError> {
     let mut buf = String::new();
-    let ref_checks: Vec<&Check> = if let Some(limit) = latest {
-        store.checks().iter().rev().take(limit).collect()
-    } else {
-        store.checks().iter().collect()
-    };
-    if let Err(e) = outages_detailed(&ref_checks, &mut buf, dump) {
+    if let Err(e) = outages_detailed(checks, &mut buf, dump) {
         eprintln!("{e}");
         std::process::exit(1);
     }
@@ -110,15 +138,9 @@ fn print_outages(latest: Option<usize>, dump: bool) -> Result<(), RunError> {
     Ok(())
 }
 
-fn dump(failed_only: bool) -> Result<(), RunError> {
-    let store = Store::load(true)?;
+fn dump(checks: &[&Check]) -> Result<(), RunError> {
     let mut buf = String::new();
-    let ref_checks: Vec<&Check> = if failed_only {
-        store.checks().iter().filter(|c| !c.is_success()).collect()
-    } else {
-        store.checks().iter().collect()
-    };
-    if let Err(e) = display_group(&ref_checks, &mut buf) {
+    if let Err(e) = display_group(checks, &mut buf) {
         eprintln!("{e}");
         std::process::exit(1);
     }
@@ -132,9 +154,8 @@ fn rewrite() -> Result<(), RunError> {
     Ok(())
 }
 
-fn analysis() -> Result<(), RunError> {
-    let store = Store::load(true)?;
-    match analyze::analyze(&store) {
+fn analysis(store: &Store, relevant_checks: &[&Check]) -> Result<(), RunError> {
+    match analyze::analyze(store, relevant_checks) {
         Err(e) => {
             eprintln!("Error while making the analysis: {e}");
             std::process::exit(1);
