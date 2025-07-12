@@ -20,7 +20,6 @@ use thiserror::Error;
 use tracing::debug;
 use tracing::error;
 
-use crate::analyze::outage;
 use crate::records::Check;
 
 use super::{fmt_timestamp, key_value_write, CheckGroup};
