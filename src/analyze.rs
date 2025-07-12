@@ -178,7 +178,7 @@ pub fn get_checks(
         checks
     };
 
-    let checks: Vec<&Check> = checks
+    let mut checks: Vec<&Check> = checks
         .into_iter()
         .filter(|c| {
             (if constraints.failed_only {
@@ -195,6 +195,7 @@ pub fn get_checks(
                 })
         })
         .collect();
+    checks.sort();
 
     Ok(checks)
 }
@@ -286,14 +287,24 @@ fn outages(all: &[&Check], f: &mut String) -> Result<(), AnalysisError> {
 ///
 /// Groups consecutive failed checks by check type and creates
 /// Outage records for reporting. This is the more detailed version of [outages]
-pub fn outages_detailed(all: &[&Check], f: &mut String, dump: bool) -> Result<(), AnalysisError> {
+pub fn outages_detailed(
+    all: &[&Check],
+    latest_outages: Option<usize>,
+    f: &mut String,
+    dump: bool,
+) -> Result<(), AnalysisError> {
     let fails_exist = !all.iter().all(|c| c.is_success());
     if !fails_exist || all.is_empty() {
         writeln!(f, "None\n")?;
         return Ok(());
     }
 
-    let fail_groups = fail_groups(all);
+    let mut fail_groups = fail_groups(all);
+    if let Some(latest) = latest_outages {
+        fail_groups.sort_by(|a, b| a.cmp(b).reverse());
+        fail_groups.truncate(latest);
+        fail_groups.sort();
+    }
     for (outage_idx, group) in fail_groups.into_iter().enumerate() {
         if group.is_empty() {
             error!("empty outage group");
