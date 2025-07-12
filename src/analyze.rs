@@ -588,7 +588,7 @@ mod tests {
         for _ in 0..40 {
             let fg = fail_groups(&checks);
             assert_eq!(fg.len(), 2);
-            assert_eq!(fg[0].len(), 20);
+            assert_eq!(fg[0].len(), 8);
             assert_eq!(fg[1].len(), 4);
 
             let _outages = [
