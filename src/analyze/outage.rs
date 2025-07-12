@@ -17,8 +17,10 @@ use std::fmt::Write;
 use std::ops::Deref;
 
 use thiserror::Error;
+use tracing::debug;
 use tracing::error;
 
+use crate::analyze::outage;
 use crate::records::Check;
 
 use super::{fmt_timestamp, key_value_write, CheckGroup};
@@ -156,11 +158,13 @@ impl<'check> Outage<'check> {
     /// Convenient function to build [Outages](Outage) from a lost of checks
     pub fn make_outages(all: &[&'check Check]) -> Vec<Outage<'check>> {
         let fail_groups = super::fail_groups(all);
+        debug!("fail groups found: {}", fail_groups.len());
         let mut outages: Vec<Outage> = fail_groups
             .into_iter()
             .map(|a| Outage::try_from(a).expect("check fail group was empty"))
             .collect();
         outages.sort();
+        debug!("Outages found: {}", outages.len());
         outages
     }
 
