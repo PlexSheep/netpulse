@@ -35,7 +35,7 @@ use tracing::{debug, error, trace};
 
 use crate::errors::AnalysisError;
 use crate::records::{display_group, Check, CheckType, IpType};
-use crate::store::Store;
+use crate::store::{Store, OUTAGE_TIME_SPAN};
 
 use std::collections::HashMap;
 use std::fmt::{Display, Write};
@@ -325,37 +325,32 @@ fn group_by_time<'check>(checks: &[&'check Check]) -> HashMap<i64, CheckGroup<'c
 
 pub(crate) fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'check>> {
     trace!("calculating fail groups");
-    let mut groups: Vec<CheckGroup<'check>> = Vec::new();
     let by_time = group_by_time(checks);
     let mut time_sorted_values: Vec<&Vec<&Check>> = by_time.values().collect();
     time_sorted_values.sort();
+    let max_time_inbetween = chrono::TimeDelta::seconds(OUTAGE_TIME_SPAN);
+    let mut continuous_outage_groups: Vec<Vec<Vec<&Check>>> = Vec::new();
+    let mut group_first_time: DateTime<chrono::Local> = chrono::DateTime::UNIX_EPOCH.into();
+    let mut group_current = Vec::new();
+    let mut first;
 
-    let mut in_group = false;
-    let mut current_group: Vec<&Check> = Vec::new();
-
-    for checks in time_sorted_values {
-        let ok = checks.iter().all(|a| a.is_success());
-        if !ok {
-            if !in_group {
-                in_group = true;
-            }
-            current_group.extend(checks);
-        } else if in_group && ok {
-            // end of the outage
-
-            in_group = false;
-            groups.push(current_group);
-            current_group = Vec::new();
+    for time_group in time_sorted_values {
+        first = time_group[0];
+        if group_current.is_empty() {
+            group_first_time = first.timestamp_parsed();
         }
+        if first.timestamp_parsed() - group_first_time > max_time_inbetween {
+            continuous_outage_groups.push(group_current.clone());
+            group_current.clear();
+        }
+        group_current.push(time_group.clone());
     }
 
-    // finishing up, some might be left over
-    if in_group {
-        groups.push(current_group);
-    }
-
-    groups.sort();
-    groups
+    continuous_outage_groups.sort();
+    continuous_outage_groups
+        .into_iter()
+        .map(|v| v.into_iter().flatten().collect())
+        .collect()
 }
 
 /// Analyze metrics for a specific check type.
