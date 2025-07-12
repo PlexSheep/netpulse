@@ -14,6 +14,7 @@
 use std::cmp::Ordering;
 use std::fmt::Display;
 use std::fmt::Write;
+use std::ops::Deref;
 
 use thiserror::Error;
 use tracing::error;
@@ -152,6 +153,17 @@ pub struct Outage<'check> {
 }
 
 impl<'check> Outage<'check> {
+    /// Convenient function to build [Outages](Outage) from a lost of checks
+    pub fn make_outages(all: &[&'check Check]) -> Vec<Outage<'check>> {
+        let fail_groups = super::fail_groups(all);
+        let mut outages: Vec<Outage> = fail_groups
+            .into_iter()
+            .map(|a| Outage::try_from(a).expect("check fail group was empty"))
+            .collect();
+        outages.sort();
+        outages
+    }
+
     /// Creates a new outage from a slice of checks.
     ///
     /// # Arguments
@@ -296,6 +308,14 @@ impl<'check> TryFrom<CheckGroup<'check>> for Outage<'check> {
             return Err(OutageError::EmptyOutage);
         }
         Outage::build(&value)
+    }
+}
+
+impl<'check> Deref for Outage<'check> {
+    type Target = Vec<&'check Check>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.all
     }
 }
 
