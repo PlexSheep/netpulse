@@ -20,11 +20,12 @@ use thiserror::Error;
 use tracing::debug;
 use tracing::error;
 
-use crate::analyze::outage;
 use crate::records::Check;
 
 use super::{fmt_timestamp, key_value_write, CheckGroup};
 
+// TODO: remove this
+#[allow(missing_docs)]
 #[derive(Error, Debug, Clone, Copy)]
 pub enum SeverityError {
     #[error("Ratio of severity out of range: {0}")]
@@ -49,6 +50,8 @@ pub enum SeverityError {
 ///     Err(OutageError::EmptyOutage)
 /// ));
 /// ```
+// TODO: remove this
+#[allow(missing_docs)]
 #[derive(Error, Debug, Clone, Copy)]
 pub enum OutageError {
     #[error("tried to create an empty outage (without any contained checks)")]

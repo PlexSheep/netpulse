@@ -44,12 +44,19 @@ fn main() {
     opts.optflag("d", "dump", "print out all checks");
     opts.optflag("4", "ipv4", "only consider ipv4");
     opts.optflag("6", "ipv6", "only consider ipv6");
+    opts.optflag("6", "ipv6", "only consider ipv6");
     opts.optflag("c", "complete", "only consider complete outages");
     opts.optopt(
         "s",
         "since",
         "only consider checks after DATETIME (Format: 2025-06-11T12:00:00Z)",
         "DATETIME",
+    );
+    opts.optopt(
+        "l",
+        "latest",
+        "only consider the N latest checks or outages",
+        "N",
     );
     opts.optflag(
         "r",
@@ -101,22 +108,45 @@ fn err_handler(e: impl Error) -> ! {
 fn analyze(constraints: CheckAccessConstraints, matches: Matches) -> Result<(), RunError> {
     let store = Store::load(true)?;
 
+    let latest: Option<usize> = match matches.opt_get("latest") {
+        Ok(l) => l,
+        Err(e) => err_handler(e),
+    };
+
+    macro_rules! incheck {
+        () => {{
+            get_checks(&store, constraints).map_err(|e| RunError::from(e))?
+        }};
+    }
     macro_rules! checks {
-        () => {
-            &get_checks(&store, constraints).map_err(|e| RunError::from(e))?
-        };
+        () => {{
+            let mut _checks = incheck!();
+            tracing::debug!("Get checks final checks: {}", _checks.len());
+            _checks
+        }};
+        ($latest:expr) => {{
+            let mut _checks = incheck!();
+            if let Some(latest) = $latest {
+                // we want to cut the last ones, not the first ones
+                _checks.sort_by(|a, b| a.cmp(b).reverse());
+                _checks.truncate(latest);
+                _checks.sort();
+            }
+            tracing::debug!("Get checks final checks: {}", _checks.len());
+            _checks
+        }};
     }
 
     if matches.opt_present("outages") {
-        print_outages(checks!(), None, matches.opt_present("dump"))?;
+        print_outages(&checks!(), latest, matches.opt_present("dump"))?;
     } else if matches.opt_present("dump") {
-        dump(checks!())?;
+        dump(&checks!(latest))?;
     } else if matches.opt_present("test") {
         test_checks()?;
     } else if matches.opt_present("rewrite") {
         rewrite()?;
     } else {
-        analysis(&store, checks!())?;
+        analysis(&store, &checks!(latest))?;
     }
     Ok(())
 }
@@ -133,7 +163,7 @@ fn test_checks() -> Result<(), RunError> {
 
 fn print_outages(checks: &[&Check], latest: Option<usize>, dump: bool) -> Result<(), RunError> {
     let mut buf = String::new();
-    if let Err(e) = outages_detailed(checks, &mut buf, dump) {
+    if let Err(e) = outages_detailed(checks, latest, &mut buf, dump) {
         eprintln!("{e}");
         std::process::exit(1);
     }
