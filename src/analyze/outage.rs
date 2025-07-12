@@ -14,7 +14,6 @@
 use std::cmp::Ordering;
 use std::fmt::Display;
 use std::fmt::Write;
-use std::net::IpAddr;
 
 use thiserror::Error;
 use tracing::error;

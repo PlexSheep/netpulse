@@ -12,13 +12,11 @@
 //! Use the `--help` flag for more information about the usage.
 
 use std::error::Error;
-use std::str::FromStr;
 
 use getopts::{Matches, Options};
 use netpulse::analyze::{
     self, get_checks, outages_detailed, CheckAccessConstraints, IpAddrConstraint,
 };
-use netpulse::checks;
 use netpulse::common::{init_logging, print_usage, setup_panic_handler};
 use netpulse::errors::RunError;
 use netpulse::records::{display_group, Check};
