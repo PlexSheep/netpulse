@@ -14,10 +14,11 @@
 //! # Examples
 //!
 //! ```rust,no_run
-//! use netpulse::{store::Store, analyze};
+//! use netpulse::{store::Store, analyze::{get_checks, CheckAccessConstraints, analyze}};
 //!
 //! let store = Store::load(true).unwrap();
-//! let report = analyze::analyze(&store).unwrap();
+//! let checks = get_checks(&store, Default::default()).unwrap();
+//! let report = analyze(&store, &checks).unwrap();
 //! println!("{}", report);
 //! ```
 //!
@@ -124,10 +125,11 @@ impl IpAddrConstraint {
 /// # Example
 ///
 /// ```rust,no_run
-/// use netpulse::{store::Store, analyze};
+/// use netpulse::{store::Store, analyze::{get_checks, CheckAccessConstraints, analyze}};
 ///
 /// let store = Store::load(true).unwrap();
-/// let report = analyze::analyze(&store).unwrap();
+/// let checks = get_checks(&store, Default::default()).unwrap();
+/// let report = analyze(&store, &checks).unwrap();
 /// println!("{}", report);
 /// ```
 pub fn analyze(store: &Store, checks: &[&Check]) -> Result<String, AnalysisError> {
@@ -355,6 +357,7 @@ pub(crate) fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'c
         }
         group_current.push(time_group.clone());
     }
+    continuous_outage_groups.push(group_current.clone());
 
     continuous_outage_groups.sort();
     continuous_outage_groups
@@ -538,6 +541,7 @@ mod tests {
         let time3 = Utc::now().with_minute(time.minute()+2).unwrap();
         let time4 = Utc::now().with_minute(time.minute()+3).unwrap();
         let time5 = Utc::now().with_minute(time.minute()+4).unwrap();
+        let time50 = Utc::now().with_minute(time.minute()+50).unwrap();
 
         let mut a = vec![
             Check::new(time, CheckFlag::Success | CheckFlag::TypeHTTP, None, ip4),
@@ -564,6 +568,11 @@ mod tests {
             Check::new(time5, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip4),
             Check::new(time5, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip6),
             Check::new(time5, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip6),
+
+            Check::new(time50, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time50, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time50, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time50, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip6),
         ]    ;
         a.sort();
         a
@@ -579,7 +588,7 @@ mod tests {
         for _ in 0..40 {
             let fg = fail_groups(&checks);
             assert_eq!(fg.len(), 2);
-            assert_eq!(fg[0].len(), 8);
+            assert_eq!(fg[0].len(), 20);
             assert_eq!(fg[1].len(), 4);
 
             let _outages = [
@@ -596,7 +605,7 @@ mod tests {
         let checks: Vec<&Check> = base_checks.iter().collect();
 
         let tg = group_by_time(&checks);
-        assert_eq!(tg.len(), 5);
+        assert_eq!(tg.len(), 6);
         for (k, v) in tg {
             assert_eq!(v.len(), 4);
             for c in v {
