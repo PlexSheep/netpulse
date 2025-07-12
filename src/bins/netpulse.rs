@@ -44,11 +44,11 @@ fn main() {
     opts.optflag("d", "dump", "print out all checks");
     opts.optflag("4", "ipv4", "only consider ipv4");
     opts.optflag("6", "ipv6", "only consider ipv6");
-    opts.optflag("f", "full", "only consider full outages");
+    opts.optflag("c", "complete", "only consider complete outages");
     opts.optopt(
         "s",
         "since",
-        "only consider checks after DATETIME",
+        "only consider checks after DATETIME (Format: 2025-06-11T12:00:00Z)",
         "DATETIME",
     );
     opts.optflag(
@@ -74,7 +74,7 @@ fn main() {
     if matches.opt_present("failed") {
         constraints.failed_only = true;
     }
-    if matches.opt_present("full") {
+    if matches.opt_present("complete") {
         constraints.failed_only = true;
         constraints.only_complete = true;
     }
