@@ -201,7 +201,7 @@ fn key_value_write(
     title: &str,
     content: impl Display,
 ) -> Result<(), std::fmt::Error> {
-    writeln!(f, "{:<24}: {}", title, content)
+    writeln!(f, "{title:<24}: {content}")
 }
 
 /// Analyzes and formats outage information from the store.
@@ -215,7 +215,7 @@ fn outages(all: &[&Check], f: &mut String) -> Result<(), AnalysisError> {
         return Ok(());
     }
 
-    let fail_groups = fail_groups(&all);
+    let fail_groups = fail_groups(all);
     let mut outages: Vec<Outage> = fail_groups
         .iter()
         .map(|a| Outage::try_from(a).expect("check fail group was empty"))
@@ -379,12 +379,8 @@ fn generalized(checks: &[&Check], f: &mut String) -> Result<(), AnalysisError> {
         writeln!(f, "no checks to analyze\n")?;
         return Ok(());
     }
-    let all: Vec<&Check> = checks.iter().map(|c| *c).collect();
-    let successes: Vec<&Check> = checks
-        .iter()
-        .map(|c| *c)
-        .filter(|c| c.is_success())
-        .collect();
+    let all: Vec<&Check> = checks.to_vec();
+    let successes: Vec<&Check> = checks.iter().copied().filter(|c| c.is_success()).collect();
     analyze_check_type_set(f, &all, &successes)?;
     Ok(())
 }
@@ -419,7 +415,7 @@ fn gereric_ip_analyze(
 ) -> Result<(), AnalysisError> {
     let all: Vec<&Check> = checks
         .iter()
-        .map(|c| *c)
+        .copied()
         .filter(|c| c.ip_type() == ip_type)
         .collect();
     let successes: Vec<&Check> = all.clone().into_iter().filter(|c| c.is_success()).collect();
@@ -434,7 +430,7 @@ fn generic_type_analyze(
 ) -> Result<(), AnalysisError> {
     let all: Vec<&Check> = checks
         .iter()
-        .map(|c| *c)
+        .copied()
         .filter(|c| c.calc_type().unwrap_or(CheckType::Unknown) == check_type)
         .collect();
     let successes: Vec<&Check> = all.clone().into_iter().filter(|c| c.is_success()).collect();

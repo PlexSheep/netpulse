@@ -105,7 +105,7 @@ pub fn root_guard() {
 ///
 /// Always exits with status code 0 after displaying usage.
 pub fn print_usage(program: &str, opts: Options) -> ! {
-    let brief = format!("Usage: {} [options]", program);
+    let brief = format!("Usage: {program} [options]");
     print!("{}", opts.usage(&brief));
     std::process::exit(0)
 }
@@ -176,7 +176,7 @@ pub fn init_logging(level: tracing::Level) {
 /// ```
 pub fn confirm(message: impl Display) -> bool {
     // Print prompt and flush to ensure it's displayed before reading input
-    print!("{} y/N: ", message);
+    print!("{message} y/N: ");
     io::stdout().flush().unwrap();
 
     // Read user input
@@ -321,9 +321,9 @@ pub fn setup_panic_handler() {
 
             // Extract error message and location
             if let Some(msg) = panic_info.payload().downcast_ref::<&str>() {
-                message.push_str(&format!("Error:       {}\n", msg));
+                message.push_str(&format!("Error:       {msg}\n"));
             } else if let Some(msg) = panic_info.payload().downcast_ref::<String>() {
-                message.push_str(&format!("Error:       {}\n", msg));
+                message.push_str(&format!("Error:       {msg}\n"));
             }
 
             if let Some(location) = panic_info.location() {
@@ -341,7 +341,7 @@ pub fn setup_panic_handler() {
                 "with the above technical details and what you were doing when this happened.\n",
             );
 
-            eprintln!("{}", message);
+            eprintln!("{message}");
             std::process::exit(1);
         }));
     }
