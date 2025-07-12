@@ -31,7 +31,7 @@
 
 use chrono::{DateTime, Local};
 use deepsize::DeepSizeOf;
-use tracing::{error, trace};
+use tracing::{debug, error, trace};
 
 use crate::errors::AnalysisError;
 use crate::records::{display_group, Check, CheckType, IpType};
@@ -57,23 +57,35 @@ pub const TIME_FORMAT_HUMANS: &str = "%Y-%m-%d %H:%M:%S %Z";
 /// A group of [Checks](Check)
 pub type CheckGroup<'check> = Vec<&'check Check>;
 
+/// This enum describes which ip address types should be considered
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord, Default)]
 pub enum IpAddrConstraint {
+    /// Any IP (does not matter)
     #[default]
     Any,
+    /// Only V4
     V4,
+    /// Only V6
     V6,
 }
 
+/// This struct is used to filter out [Checks](Check) that are not relevant
+///
+/// It is supposed to be used with [get_checks].
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord, Default)]
 pub struct CheckAccessConstraints {
+    /// Only consider failed checks
     pub failed_only: bool,
+    /// Only consider checks of a certain ip type
     pub ip: IpAddrConstraint,
+    /// Only consider checks made since a certain date (or ignore date if [`None`])
     pub since_date: Option<DateTime<Local>>,
+    /// Only consider complete outages, not partial ones
     pub only_complete: bool,
 }
 
 impl IpAddrConstraint {
+    /// check if an [IpAddr](std::net::IpAddr) matches and therefore should be filtered out
     pub fn ip_matches(&self, ip: &std::net::IpAddr) -> bool {
         if matches!(self, Self::Any) {
             return true;
@@ -83,6 +95,7 @@ impl IpAddrConstraint {
             std::net::IpAddr::V6(_) => matches!(self, Self::V6),
         }
     }
+    /// check if an [IpType] matches and therefore should be filtered out
     pub fn ip_type_matches(&self, ip: &IpType) -> bool {
         if matches!(self, Self::Any) {
             return true;
@@ -137,26 +150,54 @@ pub fn analyze(store: &Store, checks: &[&Check]) -> Result<String, AnalysisError
     Ok(f)
 }
 
+/// Get all [Checks](Check) from a [Store] and filter out according to [CheckAccessConstraints]
 pub fn get_checks(
     store: &Store,
     constraints: CheckAccessConstraints,
 ) -> Result<Vec<&Check>, AnalysisError> {
-    let checks = store.checks().iter().filter(|c| {
-        (if constraints.failed_only {
-            !c.is_success()
-        } else {
-            true
-        }) && constraints.ip.ip_type_matches(&c.ip_type())
-            && ({
-                if let Some(since_date) = constraints.since_date {
-                    c.timestamp_parsed() >= since_date
-                } else {
-                    true
-                }
-            })
-    });
+    debug!("Getting checks with the following constraints: {constraints:#?}");
 
-    Ok(checks.collect())
+    let checks: Vec<&Check> = store.checks().iter().collect();
+
+    let checks: Vec<&Check> = if constraints.only_complete && constraints.failed_only {
+        debug!("Processing outages because only complete outages should be considered");
+        let outages = Outage::make_outages(checks.as_ref());
+
+        fn is_in_outage(outages: &[Outage], check: &Check) -> bool {
+            outages
+                .binary_search_by(|outage| {
+                    outage[0].timestamp_parsed().cmp(&check.timestamp_parsed())
+                })
+                .is_ok()
+        }
+        checks
+            .into_iter()
+            .filter(|c| is_in_outage(&outages, c))
+            .collect()
+    } else {
+        checks
+    };
+
+    let checks: Vec<&Check> = store
+        .checks()
+        .iter()
+        .filter(|c| {
+            (if constraints.failed_only {
+                !c.is_success()
+            } else {
+                true
+            }) && constraints.ip.ip_type_matches(&c.ip_type())
+                && ({
+                    if let Some(since_date) = constraints.since_date {
+                        c.timestamp_parsed() >= since_date
+                    } else {
+                        true
+                    }
+                })
+        })
+        .collect();
+
+    Ok(checks)
 }
 
 /// Formats a [SystemTime](std::time::SystemTime) as an easily readable timestamp for humans.
@@ -215,12 +256,7 @@ fn outages(all: &[&Check], f: &mut String) -> Result<(), AnalysisError> {
         return Ok(());
     }
 
-    let fail_groups = fail_groups(all);
-    let mut outages: Vec<Outage> = fail_groups
-        .iter()
-        .map(|a| Outage::try_from(a).expect("check fail group was empty"))
-        .collect();
-    outages.sort();
+    let mut outages = Outage::make_outages(all);
 
     writeln!(f, "Latest\n")?;
 
@@ -287,7 +323,7 @@ fn group_by_time<'check>(checks: &[&'check Check]) -> HashMap<i64, CheckGroup<'c
     groups
 }
 
-fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'check>> {
+pub(crate) fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'check>> {
     trace!("calculating fail groups");
     let mut groups: Vec<CheckGroup<'check>> = Vec::new();
     let by_time = group_by_time(checks);

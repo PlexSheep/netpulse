@@ -26,7 +26,7 @@ use tracing::error;
 fn main() {
     setup_panic_handler();
     #[cfg(not(debug_assertions))]
-    init_logging(tracing::Level::INFO);
+    init_logging(tracing::Level::DEBUG);
     #[cfg(debug_assertions)]
     init_logging(tracing::Level::TRACE);
     let args: Vec<String> = std::env::args().collect();
@@ -44,6 +44,7 @@ fn main() {
     opts.optflag("d", "dump", "print out all checks");
     opts.optflag("4", "ipv4", "only consider ipv4");
     opts.optflag("6", "ipv6", "only consider ipv6");
+    opts.optflag("f", "full", "only consider full outages");
     opts.optopt(
         "s",
         "since",
@@ -72,6 +73,10 @@ fn main() {
     }
     if matches.opt_present("failed") {
         constraints.failed_only = true;
+    }
+    if matches.opt_present("full") {
+        constraints.failed_only = true;
+        constraints.only_complete = true;
     }
     if matches.opt_present("ipv4") {
         constraints.ip = IpAddrConstraint::V4;
