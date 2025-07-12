@@ -26,7 +26,7 @@ use tracing::error;
 fn main() {
     setup_panic_handler();
     #[cfg(not(debug_assertions))]
-    init_logging(tracing::Level::DEBUG);
+    init_logging(tracing::Level::INFO);
     #[cfg(debug_assertions)]
     init_logging(tracing::Level::TRACE);
     let args: Vec<String> = std::env::args().collect();
