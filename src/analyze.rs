@@ -181,7 +181,7 @@ pub fn get_checks(
     let checks: Vec<&Check> = checks
         .into_iter()
         .filter(|c| {
-            (if constraints.failed_only && !constraints.only_complete {
+            (if constraints.failed_only {
                 !c.is_success()
             } else {
                 true
