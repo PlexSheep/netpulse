@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+## [0.9.0](https://github.com/PlexSheep/netpulse/compare/v0.8.0...v0.9.0)
+
+### ⛰️ Features
+
+- Implement length cutoff query - ([078c4dd](https://github.com/PlexSheep/netpulse/commit/078c4ddc80a6dbb990da4ff1eced262bc1b54702))
+- --complete works now thanks to refactor - ([6287e3d](https://github.com/PlexSheep/netpulse/commit/6287e3dea28d9dc85429e4dfbe4342c7079f6da9))
+- Only consider full outages - ([e1e6ec4](https://github.com/PlexSheep/netpulse/commit/e1e6ec4a8881d4db19774f5fc26829a3b28e7ef1))
+- Allow reading only v4 or v6 - ([dcbe14e](https://github.com/PlexSheep/netpulse/commit/dcbe14ed3b8150077d9ebcc38d089be8365dd27c))
+
+### 🐛 Bug Fixes
+
+- Analyze had a logic error - ([e9b1fb1](https://github.com/PlexSheep/netpulse/commit/e9b1fb1036995db03be34f478b882cf2d1659d05))
+
+### 📚 Documentation
+
+- Update readme spellings - ([a039513](https://github.com/PlexSheep/netpulse/commit/a0395133a006171df662eef80ec07624e3585083))
+
+### 🧪 Testing
+
+- Fix tests for changes - ([e0ab270](https://github.com/PlexSheep/netpulse/commit/e0ab270d35e4abe607ce218801b5b05b85b551b9))
+
+### ⚙️ Miscellaneous Tasks
+
+- Set loglevel for release to info - ([1eceddb](https://github.com/PlexSheep/netpulse/commit/1eceddb93b011d7fe1b086e0578bd9737b6b16cb))
+- Automatic Rust CI changes - ([b63734b](https://github.com/PlexSheep/netpulse/commit/b63734b56820e2776886a2ff9e869f7b2996c358))
+- [**breaking**] Change license to GPL3 - ([9fc76e0](https://github.com/PlexSheep/netpulse/commit/9fc76e0dd3ab36096d1b356a1eda6ae7d5bbb78d))
+- Update ci - ([4eb9aba](https://github.com/PlexSheep/netpulse/commit/4eb9aba3cb5b57dbe672f0d950be87e43c92eb28))
+
+
 ## [0.8.0](https://github.com/PlexSheep/netpulse/compare/v0.7.0...v0.8.0)
 
 ### 🐛 Bug Fixes
