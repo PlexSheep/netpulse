@@ -340,30 +340,44 @@ pub(crate) fn fail_groups<'check>(checks: &[&'check Check]) -> Vec<CheckGroup<'c
     let by_time = group_by_time(checks);
     let mut time_sorted_values: Vec<&Vec<&Check>> = by_time.values().collect();
     time_sorted_values.sort();
-    let max_time_inbetween = chrono::TimeDelta::seconds(OUTAGE_TIME_SPAN);
-    let mut continuous_outage_groups: Vec<Vec<Vec<&Check>>> = Vec::new();
-    let mut group_first_time: DateTime<chrono::Local> = chrono::DateTime::UNIX_EPOCH.into();
-    let mut group_current = Vec::new();
+    let mut continuous_outage_groups: Vec<Vec<&Check>> = Vec::new();
+    let mut group_first_time = time_sorted_values[0][0].timestamp();
+    let mut group_current: Vec<&Check> = Vec::new();
     let mut first;
 
     for time_group in time_sorted_values {
+        #[cfg(debug_assertions)]
+        {
+            let t = time_group[0].timestamp();
+            debug_assert!(
+                time_group.iter().all(|c| c.timestamp() == t),
+                "time group does not share time"
+            )
+        }
+        if time_group.iter().all(|c| c.is_success()) {
+            if !group_current.is_empty() {
+                continuous_outage_groups.push(group_current.clone());
+                group_current.clear();
+            }
+            continue;
+        }
         first = time_group[0];
         if group_current.is_empty() {
-            group_first_time = first.timestamp_parsed();
+            group_first_time = first.timestamp();
         }
-        if first.timestamp_parsed() - group_first_time > max_time_inbetween {
+        if first.timestamp() - group_first_time > OUTAGE_TIME_SPAN {
             continuous_outage_groups.push(group_current.clone());
             group_current.clear();
+            group_first_time = first.timestamp(); // i don't understand why this needs to be here
         }
-        group_current.push(time_group.clone());
+        group_current.extend(time_group);
     }
-    continuous_outage_groups.push(group_current.clone());
+    if !group_current.is_empty() {
+        continuous_outage_groups.push(group_current);
+    }
 
     continuous_outage_groups.sort();
     continuous_outage_groups
-        .into_iter()
-        .map(|v| v.into_iter().flatten().collect())
-        .collect()
 }
 
 /// Analyze metrics for a specific check type.
@@ -537,42 +551,43 @@ mod tests {
         let ip4 = TARGETS[0].parse().unwrap();
         let ip6 = TARGETS[1].parse().unwrap();
         let time = Utc::now().with_minute(0).unwrap();
-        let time2 = Utc::now().with_minute(time.minute()+1).unwrap();
-        let time3 = Utc::now().with_minute(time.minute()+2).unwrap();
-        let time4 = Utc::now().with_minute(time.minute()+3).unwrap();
-        let time5 = Utc::now().with_minute(time.minute()+4).unwrap();
-        let time50 = Utc::now().with_minute(time.minute()+50).unwrap();
+        let time = |min: u32| Utc::now().with_minute(time.minute()+min).unwrap();
 
         let mut a = vec![
-            Check::new(time, CheckFlag::Success | CheckFlag::TypeHTTP, None, ip4),
-            Check::new(time, CheckFlag::Success | CheckFlag::TypeIcmp, None, ip4),
-            Check::new(time, CheckFlag::Success | CheckFlag::TypeHTTP, None, ip6),
-            Check::new(time, CheckFlag::Success | CheckFlag::TypeIcmp, None, ip6),
+            Check::new(time(0), CheckFlag::Success | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time(0), CheckFlag::Success | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time(0), CheckFlag::Success | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time(0), CheckFlag::Success | CheckFlag::TypeIcmp, None, ip6),
 
-            Check::new(time2, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip4),
-            Check::new(time2, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip4),
-            Check::new(time2, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip6),
-            Check::new(time2, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip6),
+            Check::new(time(2), CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time(2), CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time(2), CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time(2), CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip6),
 
-            Check::new(time3, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip4),
-            Check::new(time3, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip4),
-            Check::new(time3, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip6),
-            Check::new(time3, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip6),
+            Check::new(time(3), CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time(3), CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time(3), CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time(3), CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip6),
 
-            Check::new(time4, CheckFlag::Success | CheckFlag::TypeHTTP, None, ip4),
-            Check::new(time4, CheckFlag::Success | CheckFlag::TypeIcmp, None, ip4),
-            Check::new(time4, CheckFlag::Success | CheckFlag::TypeHTTP, None, ip6),
-            Check::new(time4, CheckFlag::Success | CheckFlag::TypeIcmp, None, ip6),
+            Check::new(time(4), CheckFlag::Success | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time(4), CheckFlag::Success | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time(4), CheckFlag::Success | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time(4), CheckFlag::Success | CheckFlag::TypeIcmp, None, ip6),
 
-            Check::new(time5, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip4),
-            Check::new(time5, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip4),
-            Check::new(time5, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip6),
-            Check::new(time5, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip6),
+            Check::new(time(5), CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time(5), CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time(5), CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time(5), CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip6),
 
-            Check::new(time50, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip4),
-            Check::new(time50, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip4),
-            Check::new(time50, CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip6),
-            Check::new(time50, CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip6),
+            Check::new(time(50), CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time(50), CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time(50), CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time(50), CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip6),
+
+            Check::new(time(51), CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip4),
+            Check::new(time(51), CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip4),
+            Check::new(time(51), CheckFlag::Unreachable | CheckFlag::TypeHTTP, None, ip6),
+            Check::new(time(51), CheckFlag::Unreachable | CheckFlag::TypeIcmp, None, ip6),
         ]    ;
         a.sort();
         a
@@ -587,9 +602,10 @@ mod tests {
         // fail_groups has been non deterministic in the past, because of not-sorting
         for _ in 0..40 {
             let fg = fail_groups(&checks);
-            assert_eq!(fg.len(), 2);
+            assert_eq!(fg.len(), 3);
             assert_eq!(fg[0].len(), 8);
             assert_eq!(fg[1].len(), 4);
+            assert_eq!(fg[2].len(), 8);
 
             let _outages = [
                 Outage::try_from(fg[0].clone()).unwrap(),
@@ -605,7 +621,7 @@ mod tests {
         let checks: Vec<&Check> = base_checks.iter().collect();
 
         let tg = group_by_time(&checks);
-        assert_eq!(tg.len(), 6);
+        assert_eq!(tg.len(), 7);
         for (k, v) in tg {
             assert_eq!(v.len(), 4);
             for c in v {

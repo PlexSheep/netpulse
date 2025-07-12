@@ -38,7 +38,7 @@
 //! # }
 //! ```
 
-use std::fmt::{Display, Write};
+use std::fmt::{Debug, Display, Write};
 use std::hash::Hash;
 use std::net::IpAddr;
 
@@ -227,7 +227,7 @@ impl Display for CheckType {
 /// - Whether it succeeded
 /// - Measured latency (if successful)
 /// - Target address
-#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize, Clone, Copy)]
+#[derive(PartialEq, Eq, Hash, Deserialize, Serialize, Clone, Copy)]
 pub struct Check {
     /// Unix timestamp when check was performed (seconds since UNIX_EPOCH)
     timestamp: i64,
@@ -447,6 +447,17 @@ impl From<IpAddr> for IpType {
             IpAddr::V4(_) => Self::V4,
             IpAddr::V6(_) => Self::V6,
         }
+    }
+}
+
+impl Debug for Check {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Check")
+            .field("timestamp", &self.timestamp_parsed())
+            .field("flags", &self.flags())
+            .field("latency", &self.latency())
+            .field("target", &self.target())
+            .finish()
     }
 }
 
